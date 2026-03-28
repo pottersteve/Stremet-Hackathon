@@ -9,6 +9,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
 from home.models import Order
+from home.auth_utils import get_profile_role
 from .models import (
     ManufacturingPlan, ManufacturingStep,
     QualityChecklistItem, StepMaterial, StepDependency,
@@ -20,7 +21,12 @@ from .forms import (
 
 
 def is_designer(user):
-    return hasattr(user, 'profile') and user.profile.role == 'designer'
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    role = get_profile_role(user)
+    return role in ('designer', 'admin')
 
 
 def designer_required(view_func):

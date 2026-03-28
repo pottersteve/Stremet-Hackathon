@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.http import Http404
 from django.utils import timezone
 
+from home.auth_utils import get_profile_role
 from designer.models import ManufacturingPlan, ManufacturingStep
 
 from .services import manufacturer_orders_queryset, plan_work_summary
@@ -12,7 +13,12 @@ from .forms import StepProgressForm, ManufacturerQualityChecklistFormSet
 
 
 def is_manufacturer(user):
-    return hasattr(user, 'profile') and user.profile.role == 'manufacturer'
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    role = get_profile_role(user)
+    return role in ('manufacturer', 'admin')
 
 
 def manufacturer_required(view_func):

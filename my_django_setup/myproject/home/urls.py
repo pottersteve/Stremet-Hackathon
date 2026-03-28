@@ -16,4 +16,6 @@ urlpatterns = [
     
     # Hidden Javascript Endpoint for the Flowchart
     path('update-status/', views.update_item_status, name='update_item_status'),
+    path('login/', views.login_view, name='login'),    
+    path('logout/', views.logout_view, name='logout')
 ]

@@ -1,20 +1,59 @@
 import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
+# FIXED: Standardized the auth imports so they don't crash
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 
-# Importing all your models from the home app
 from .models import Order, Client, OrderImage, OrderItem
 
-# ==========================================
-# PUBLIC PAGES (No login required)
-# ==========================================
 
 def dashboard(request):
     """Renders the main landing page."""
     return render(request, 'home/index.html')
+
+# ==========================================
+# UNIFIED AUTHENTICATION
+# ==========================================
+
+def login_view(request):
+    """Handles login for EVERYONE (Customers, Admins, Manufacturers)."""
+    if request.user.is_authenticated:
+        # If they already logged in, route them to the right place
+        if hasattr(request.user, 'profile') and request.user.profile.role in ['admin', 'manufacturer']:
+            return redirect('staff_dashboard')
+        return redirect('home_dashboard')
+
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            login(request, user) # FIXED: This now works perfectly
+            messages.success(request, f"Welcome back, {user.username}!")
+            
+            # Route them based on their role in the UserProfile database
+            if hasattr(user, 'profile') and user.profile.role in ['admin', 'manufacturer']:
+                return redirect('staff_dashboard')
+            return redirect('home_dashboard')
+        else:
+            messages.error(request, "Invalid username or password.")
+
+    return render(request, 'home/login.html')
+
+def logout_view(request):
+    """Logs the user out and sends them home."""
+    logout(request) # FIXED: This now works perfectly
+    messages.info(request, "You have successfully logged out.")
+    return redirect('login')
+
+
+# ==========================================
+# CUSTOMER PORTAL
+# ==========================================
 
 def customer_panel(request):
     """View for Customers to track orders via Order ID."""
@@ -28,49 +67,29 @@ def customer_panel(request):
             
     return render(request, 'home/customer_tracking.html')
 
-# ==========================================
-# AUTHENTICATION
-# ==========================================
-
-def staff_login(request):
-    """Handles authentication for all internal staff."""
-    if request.user.is_authenticated:
-        return redirect('staff_dashboard')
-
-    if request.method == 'POST':
-        username = request.POST.get('username') 
-        password = request.POST.get('password')
-        
-        user = authenticate(request, username=username, password=password)
-        
-        if user is not None:
-            auth_login(request, user)
-            messages.success(request, f"Welcome back, {user.username}!")
-            return redirect('staff_dashboard')
-        else:
-            messages.error(request, "Invalid username or password.")
-            
-    return render(request, 'home/staff_login.html')
-
-def staff_logout(request):
-    """Logs the user out and sends them back to the login screen."""
-    auth_logout(request)
-    messages.info(request, "You have been successfully logged out.")
-    return redirect('staff_login')
 
 # ==========================================
 # UNIFIED STAFF DASHBOARD
 # ==========================================
 
-@login_required(login_url='staff_login')
+@login_required(login_url='login')
 def staff_dashboard(request):
     """
-    Unified view: Checks user roles to show the correct features.
+    Unified view: Checks user roles from UserProfile to show the correct features.
     Admins see order creation; Manufacturers see production tracking.
     """
-    # 1. IDENTIFY USER ROLES (Here is where we declare the variables!)
-    is_admin = request.user.groups.filter(name='Administrator').exists() or request.user.is_superuser
-    is_mfg = request.user.groups.filter(name='Manufacturer').exists() or request.user.is_superuser
+    
+    # 1. IDENTIFY USER ROLES USING OUR NEW DATABASE MODEL!
+    is_admin = False
+    is_mfg = False
+    
+    if hasattr(request.user, 'profile'):
+        is_admin = (request.user.profile.role == 'admin') or request.user.is_superuser
+        is_mfg = (request.user.profile.role == 'manufacturer') or request.user.is_superuser
+    elif request.user.is_superuser:
+        # Superusers get access to everything just in case
+        is_admin = True
+        is_mfg = True
 
     context = {
         'is_admin': is_admin,

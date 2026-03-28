@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Client, Order, OrderItem, OrderImage, OrderModificationRequest, ChatMessage
+from .models import Client, Order, OrderItem, OrderImage, OrderModificationRequest, ChatMessage, UserProfile
 
 class OrderImageInline(admin.TabularInline):
     model = OrderImage
@@ -31,3 +31,8 @@ class OrderModificationRequestAdmin(admin.ModelAdmin):
 @admin.register(ChatMessage)
 class ChatMessageAdmin(admin.ModelAdmin):
     list_display = ('order', 'sender', 'timestamp')
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'role')
+    list_filter = ('role',)

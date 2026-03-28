@@ -1,0 +1,104 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stremet | Manufacturer Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'manufacturer/css/mfg.css' %}">
+</head>
+<body>
+
+{% include 'home/includes/portal_nav_bar.html' %}
+
+<nav class="navbar navbar-dark mfg-header">
+    <div class="container d-flex justify-content-between align-items-center">
+        <span class="navbar-brand mb-0 h4">Stremet — Manufacturer</span>
+        <div>
+            <span class="text-light me-3">{{ request.user.username }}</span>
+            <a href="{% url 'staff_logout' %}" class="btn btn-outline-light btn-sm">Logout</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h3 class="mb-0">Production queue</h3>
+            <small class="text-muted">Plans marked Ready or Approved. Next actionable step (DAG) is highlighted.</small>
+        </div>
+        <form method="GET" class="d-flex" style="max-width:340px;">
+            <input type="text" name="q" class="form-control me-2" placeholder="Order ID or company..." value="{{ search_query }}">
+            <button class="btn btn-success" type="submit">Search</button>
+        </form>
+    </div>
+
+    {% if rows %}
+    <div class="row g-4">
+        {% for row in rows %}
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100 shadow-sm border-0 mfg-order-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title mb-0 text-success">{{ row.order.order_id }}</h5>
+                        <span class="badge bg-secondary">{{ row.plan.get_status_display }}</span>
+                    </div>
+                    <p class="text-muted mb-1"><strong>Client:</strong> {{ row.order.client.company_name }}</p>
+                    <p class="text-muted mb-2"><strong>Plan:</strong> {{ row.plan.name }}</p>
+
+                    {% if row.primary_step %}
+                    <div class="alert alert-success py-2 mb-2">
+                        <strong>Next step:</strong> {{ row.primary_step.name }}
+                        <span class="badge bg-light text-dark ms-1">{{ row.primary_step.get_status_display }}</span>
+                    </div>
+                    <a href="{% url 'manufacturer_step_execution' plan_id=row.plan.pk step_id=row.primary_step.pk %}" class="btn btn-success btn-sm w-100 mb-1">
+                        Open step
+                    </a>
+                    {% else %}
+                    <div class="alert alert-secondary py-2 mb-2 small mb-0">
+                        No actionable step (waiting on dependencies, or all steps finished).
+                    </div>
+                    {% endif %}
+
+                    {% if row.other_ready_steps %}
+                    <p class="small text-muted mb-1 mt-2">Also ready (parallel):</p>
+                    <ul class="list-unstyled small mb-2">
+                        {% for s in row.other_ready_steps %}
+                        <li>
+                            <a href="{% url 'manufacturer_step_execution' plan_id=row.plan.pk step_id=s.pk %}">{{ s.name }}</a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+
+                    <a href="{% url 'manufacturer_order_execution' order_id=row.order.pk %}" class="btn btn-outline-secondary btn-sm w-100">
+                        All steps for this order
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+        <h5>No orders in queue.</h5>
+        <p>Orders appear when a manufacturing plan is set to <strong>Ready</strong> or <strong>Approved</strong> and the order is not delivered.</p>
+    </div>
+    {% endif %}
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

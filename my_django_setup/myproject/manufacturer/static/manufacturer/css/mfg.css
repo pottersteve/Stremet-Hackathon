@@ -1,0 +1,12 @@
+body {
+    background-color: #f4f6f9;
+}
+
+.mfg-header {
+    background-color: #145a32;
+    padding: 12px 0;
+}
+
+.mfg-order-card {
+    border-left: 4px solid #145a32;
+}

@@ -4,13 +4,11 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    path('admin/', admin.site.urls), 
-    
-    # 1. Route customer traffic to the Customer app
-    path('customer/', include('customer.urls')), 
-    
-    # 2. Route everything else (dashboard, staff logins) to the Home app
-    path('', include('home.urls')), 
+    path('admin/', admin.site.urls),
+    path('customer/', include('customer.urls')),
+    path('designer/', include('designer.urls')),
+    path('manufacturer/', include('manufacturer.urls')),
+    path('', include('home.urls')),
 ]
 
 if settings.DEBUG:

@@ -13,10 +13,12 @@ def get_profile_role(user):
 
 def ensure_user_profile(user):
     """
-    Create a UserProfile on first use. Superusers default to admin; everyone else to customer.
+    Create a UserProfile on first use. Superusers and Django staff default to admin
+    (portal administrators); everyone else defaults to customer.
     Does not change role if the profile already exists.
     """
+    default_admin = user.is_superuser or user.is_staff
     UserProfile.objects.get_or_create(
         user=user,
-        defaults={"role": "admin" if user.is_superuser else "customer"},
+        defaults={"role": "admin" if default_admin else "customer"},
     )

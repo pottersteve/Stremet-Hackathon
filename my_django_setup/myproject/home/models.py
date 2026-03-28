@@ -126,5 +126,16 @@ class ChatMessage(models.Model):
 
     timestamp = models.DateTimeField(auto_now_add=True)
 
+    def is_inbound_customer_message(self):
+        """True for guest/customer posts staff should answer (not internal staff replies)."""
+        if self.sender_id is None:
+            return True
+        try:
+            role = self.sender.profile.role
+        except UserProfile.DoesNotExist:
+            return True
+        return role == "customer"
+
     def __str__(self):
-        return f"Order {self.order.order_id} - Msg from {self.sender.username}"
+        who = self.sender.username if self.sender_id else "Guest"
+        return f"Order {self.order.order_id} - Msg from {who}"

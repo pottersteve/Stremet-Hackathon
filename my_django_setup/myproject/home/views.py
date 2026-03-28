@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import threading
 import time
 
@@ -47,15 +48,59 @@ CRITICAL OUTPUT RULES:
 Follow these rules on every response."""
 
 
-try:
-    print("Loading AI Model...")
-    # Orca Mini GGUF standard context window is 2048 tokens; keep n_ctx aligned.
-    # n_threads: more CPU workers for faster prompt eval and time-to-first-token.
-    ai_model = GPT4All(
-        "orca-mini-3b-gguf2-q4_0.gguf",
+def _load_gpt4all_model():
+    """
+    Load Orca Mini with GPU when possible.
+
+    Override with env:
+      GPT4ALL_DEVICE=cuda|kompute|cpu|gpu  (gpu → try CUDA then Kompute on Windows/Linux)
+      GPT4ALL_NGL=100  (layers offloaded to GPU; Vulkan/CUDA)
+
+    On macOS, default None uses Metal on Apple Silicon (per GPT4All).
+    """
+    common_kw = dict(
+        model_name="orca-mini-3b-gguf2-q4_0.gguf",
         n_ctx=2048,
         n_threads=os.cpu_count() or 4,
     )
+    ngl = int(os.environ.get("GPT4ALL_NGL", "100"))
+    override = os.environ.get("GPT4ALL_DEVICE", "").strip()
+    if override.lower() == "gpu" and sys.platform != "darwin":
+        # On Windows/Linux, GPT4All maps "gpu" inconsistently; use CUDA → Kompute auto-detect.
+        override = ""
+
+    if override.lower() == "cpu":
+        print("Loading AI Model (CPU only; GPT4ALL_DEVICE=cpu)...")
+        return GPT4All(**common_kw, device="cpu")
+
+    if override:
+        print(f"Loading AI Model (GPT4ALL_DEVICE={override!r})...")
+        kwargs = {**common_kw, "device": override}
+        if override.lower() != "cpu":
+            kwargs["ngl"] = ngl
+        return GPT4All(**kwargs)
+
+    if sys.platform == "darwin":
+        try:
+            print("Loading AI Model (default backend; Metal on Apple Silicon)...")
+            return GPT4All(**common_kw, ngl=ngl)
+        except Exception as e:
+            print(f"GPU/default backend failed: {e}")
+        print("Loading AI Model (CPU fallback)...")
+        return GPT4All(**common_kw, device="cpu")
+
+    for dev, label in (("cuda", "NVIDIA CUDA"), ("kompute", "Kompute (Vulkan GPU)")):
+        try:
+            print(f"Loading AI Model (trying {label})...")
+            return GPT4All(**common_kw, device=dev, ngl=ngl)
+        except Exception as e:
+            print(f"{label} unavailable: {e}")
+    print("Loading AI Model (CPU fallback)...")
+    return GPT4All(**common_kw, device="cpu")
+
+
+try:
+    ai_model = _load_gpt4all_model()
     print("AI Model loaded successfully!")
 except Exception as e:
     print(f"Failed to load AI: {e}")

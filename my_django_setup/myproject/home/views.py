@@ -19,6 +19,7 @@ def staff_login(request):
     # If they are already logged in, send them straight to the dashboard
     if request.user.is_authenticated:
         return redirect('staff_dashboard')
+    
 
     if request.method == 'POST':
         username = request.POST.get('username') 
@@ -36,7 +37,8 @@ def staff_login(request):
     # Make sure this matches the actual name of your HTML file!
     return render(request, 'home/staff_login.html')
 def staff_logout(request):
-    pass
+    request.user.is_authenticated and logout(request)
+    return redirect('staff_login')
 
 def dashboard(request):
     """Renders the main landing page."""
@@ -101,6 +103,7 @@ def customer_panel(request):
 # UNIFIED STAFF DASHBOARD
 # ==========================================
 
+
 @login_required(login_url='login')
 def staff_dashboard(request):
     """
@@ -119,6 +122,9 @@ def staff_dashboard(request):
         # Superusers get access to everything just in case
         is_admin = True
         is_mfg = True
+
+    if is_admin or request.user.is_superuser:
+        return render(request, 'home/dashboard.html')
 
     context = {
         'is_admin': is_admin,
@@ -221,3 +227,30 @@ def update_item_status(request):
             return JsonResponse({'success': False, 'error': str(e)})
             
     return JsonResponse({'success': False, 'error': 'Invalid request'})
+
+
+@login_required(login_url='login')
+def support_hub(request):
+    """Centralized page for viewing all support messages, contexts, and files."""
+    
+    # 1. Determine if the user is staff or a customer
+    is_staff = False
+    if hasattr(request.user, 'profile') and request.user.profile.role in ['admin', 'manufacturer']:
+        is_staff = True
+    elif request.user.is_superuser:
+        is_staff = True
+
+    # 2. Fetch the correct messages
+    if is_staff:
+        # Staff get to see a feed of EVERY message, newest first
+        messages_feed = ChatMessage.objects.all().order_by('-timestamp')
+    else:
+        # Customers only see messages they sent (or replies to them)
+        messages_feed = ChatMessage.objects.filter(sender=request.user).order_by('-timestamp')
+
+    context = {
+        'messages_feed': messages_feed,
+        'is_staff': is_staff
+    }
+    
+    return render(request, 'home/support_hub.html', context)

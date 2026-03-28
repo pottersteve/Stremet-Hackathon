@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+
 class UserProfile(models.Model):
     ROLE_CHOICES = (
         ('admin', 'Administrator'),
@@ -56,6 +57,20 @@ class Order(models.Model):
 
     def __str__(self):
         return f"{self.order_id} - {self.client.company_name} ({self.get_status_display()})"
+
+class ChatMessage(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='chat_logs')
+    sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    message = models.TextField()
+    
+    # --- THE NEW CONTEXT & FILE FIELDS ---
+    step_context = models.CharField(max_length=255, blank=True, null=True, help_text="The flowchart step clicked")
+    attachment = models.FileField(upload_to='chat_attachments/', blank=True, null=True)
+    
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Order {self.order.order_id} - Msg from {self.sender.username}"
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')

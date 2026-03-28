@@ -43,7 +43,9 @@ def ready_steps_for_plan(plan: ManufacturingPlan) -> list[ManufacturingStep]:
     return [s for s in steps if step_is_actionable(s)]
 
 
-def ready_manufacturing_steps_for_plan(plan: ManufacturingPlan) -> list[ManufacturingStep]:
+def ready_manufacturing_steps_for_plan(
+    plan: ManufacturingPlan,
+) -> list[ManufacturingStep]:
     steps = list(plan.steps.prefetch_related("incoming_dependencies__from_step").all())
     return [
         s

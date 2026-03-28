@@ -138,7 +138,11 @@ class StepMaterial(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        label = self.item_reservation.name if self.item_reservation_id else self.material_name
+        label = (
+            self.item_reservation.name
+            if self.item_reservation_id
+            else self.material_name
+        )
         return f"{label} ({self.quantity or '?'} {self.unit})"
 
 

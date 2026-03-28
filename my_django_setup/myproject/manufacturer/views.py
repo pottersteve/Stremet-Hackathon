@@ -90,9 +90,7 @@ def step_execution(request, plan_id, step_id):
 
     if step.step_kind == ManufacturingStep.STEP_KIND_WAREHOUSE_PICKUP:
         m_step = step.picks_for
-        preds = list(
-            step.incoming_dependencies.select_related("from_step").all()
-        )
+        preds = list(step.incoming_dependencies.select_related("from_step").all())
         return render(
             request,
             "manufacturer/step_warehouse_readonly.html",

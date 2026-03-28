@@ -15,9 +15,7 @@ MANUFACTURER_PLAN_STATUSES = ("ready", "approved")
 
 def suggest_free_slot() -> StorageSpace | None:
     used = StoredItem.objects.values_list("storage_space_id", flat=True)
-    return (
-        StorageSpace.objects.exclude(pk__in=used).order_by("slot_number").first()
-    )
+    return StorageSpace.objects.exclude(pk__in=used).order_by("slot_number").first()
 
 
 def stock_counts_by_reservation() -> dict[int, int]:

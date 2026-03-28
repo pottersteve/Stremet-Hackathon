@@ -43,11 +43,7 @@ def _rewire_pickup_edges(m_step: ManufacturingStep, pickup: ManufacturingStep) -
     """
     preds = _pred_ids_for_target(pickup)
     if not preds:
-        preds = [
-            pid
-            for pid in _pred_ids_for_target(m_step)
-            if pid != pickup.pk
-        ]
+        preds = [pid for pid in _pred_ids_for_target(m_step) if pid != pickup.pk]
 
     StepDependency.objects.filter(to_step=m_step).exclude(from_step=pickup).delete()
     StepDependency.objects.filter(to_step=pickup).delete()
@@ -58,9 +54,12 @@ def _rewire_pickup_edges(m_step: ManufacturingStep, pickup: ManufacturingStep) -
 
 
 def _create_pickup_step(plan, m_step: ManufacturingStep) -> ManufacturingStep:
-    max_seq = ManufacturingStep.objects.filter(plan=plan).aggregate(m=Max("sequence_order"))[
-        "m"
-    ] or 0
+    max_seq = (
+        ManufacturingStep.objects.filter(plan=plan).aggregate(m=Max("sequence_order"))[
+            "m"
+        ]
+        or 0
+    )
     return ManufacturingStep.objects.create(
         plan=plan,
         name=f"Pick materials for: {m_step.name}",

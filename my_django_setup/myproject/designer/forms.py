@@ -151,9 +151,7 @@ class ItemReservationForm(forms.ModelForm):
         widgets = {
             "name": forms.TextInput(attrs={"class": "form-control"}),
             "sku": forms.TextInput(attrs={"class": "form-control"}),
-            "description": forms.Textarea(
-                attrs={"class": "form-control", "rows": 3}
-            ),
+            "description": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
         }
 
 

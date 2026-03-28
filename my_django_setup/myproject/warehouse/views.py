@@ -124,10 +124,10 @@ def warehouse_pickup_detail(request, plan_id, step_id):
                 step.completed_at = timezone.now()
                 if step.started_at is None:
                     step.started_at = timezone.now()
-                step.save(
-                    update_fields=["status", "completed_at", "started_at"]
+                step.save(update_fields=["status", "completed_at", "started_at"])
+                messages.success(
+                    request, "Pickup completed; manufacturing can proceed."
                 )
-                messages.success(request, "Pickup completed; manufacturing can proceed.")
                 return redirect("warehouse_pickup_queue")
 
     return render(

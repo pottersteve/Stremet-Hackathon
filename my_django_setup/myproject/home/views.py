@@ -11,32 +11,6 @@ from designer.models import ManufacturingPlan
 
 from django.utils.dateformat import format
 
-def customer_panel(request):
-    """View for Customers to track orders via Order ID."""
-    if request.method == 'POST':
-        order_id = request.POST.get('order_id')
-        try:
-            order = Order.objects.get(order_id=order_id)
-            
-            # --- THIS IS THE MAGIC LINE ---
-            # It looks into the database, finds all messages for this specific order, and sorts them by oldest to newest
-            chat_history = order.chat_logs.all().order_by('timestamp')
-            print("I exisg")
-            print(f"\n--- CHAT HISTORY FOR ORDER {chat_history} ---")
-            print(order.chat_logs.all())
-            
-            # Now we pass BOTH the order and the chat_msgs to the HTML template
-            return render(request, 'home/customer_tracking.html', {
-                'order': order, 
-                'chat_msgs': chat_history
-                
-            })
-            
-        except Order.DoesNotExist:
-            messages.error(request, f"Order ID '{order_id}' could not be found.")
-            
-    return render(request, 'home/customer_tracking.html')
-
 def _get_role_redirect(user):
     """Return the URL name to redirect to based on user role."""
     ensure_user_profile(user)
@@ -182,16 +156,22 @@ def logout_view(request):
 # ==========================================
 
 def customer_panel(request):
-    """View for Customers to track orders via Order ID."""
+    """View for Customers to track orders via Order ID (same as customer app; URL name may resolve here)."""
+    order = None
+    chat_msgs = []
     if request.method == 'POST':
         order_id = request.POST.get('order_id')
         try:
             order = Order.objects.get(order_id=order_id)
-            return render(request, 'costumer/customer_tracking.html', {'order': order})
+            chat_msgs = order.chat_logs.all().order_by('timestamp')
         except Order.DoesNotExist:
             messages.error(request, f"Order ID '{order_id}' could not be found.")
-            
-    return render(request, 'costumer/customer_tracking.html')
+
+    return render(
+        request,
+        'customer/customer_panel.html',
+        {'order': order, 'chat_msgs': chat_msgs},
+    )
 
 
 @login_required(login_url='/login/')

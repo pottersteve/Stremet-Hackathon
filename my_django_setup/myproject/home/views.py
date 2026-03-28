@@ -12,6 +12,8 @@ def _get_role_redirect(user):
     """Return the URL name to redirect to based on user role."""
     if hasattr(user, 'profile') and user.profile.role == 'designer':
         return 'designer_dashboard'
+    if hasattr(user, 'profile') and user.profile.role == 'manufacturer':
+        return 'manufacturer_dashboard'
     return 'staff_dashboard'
 
 
@@ -101,7 +103,13 @@ def staff_dashboard(request):
     Unified view: Checks user roles from UserProfile to show the correct features.
     Admins see order creation; Manufacturers see production tracking.
     """
-    
+    if (
+        hasattr(request.user, 'profile')
+        and request.user.profile.role == 'manufacturer'
+        and not request.user.is_superuser
+    ):
+        return redirect('manufacturer_dashboard')
+
     # 1. IDENTIFY USER ROLES USING OUR NEW DATABASE MODEL!
     is_admin = False
     is_mfg = False

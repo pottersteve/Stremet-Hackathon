@@ -82,10 +82,13 @@
             </div>
         </div>
 
-        <!-- Quality Checklist -->
+        <!-- Quality Checklist (definition only — pass/fail logged in manufacturer portal) -->
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Quality Checklist</h5>
+                <div>
+                    <h5 class="mb-0">Quality Checklist (design)</h5>
+                    <small class="text-muted">Manufacturers record pass/fail on the shop floor.</small>
+                </div>
                 <button type="button" class="btn btn-success btn-sm" id="add-quality-row">+ Add Check</button>
             </div>
             <div class="card-body">
@@ -94,10 +97,8 @@
                     <table class="table table-sm align-middle" id="quality-table">
                         <thead>
                             <tr>
-                                <th style="width:30%">Check Description</th>
-                                <th style="width:20%">Expected Result</th>
-                                <th style="width:15%">Status</th>
-                                <th style="width:25%">Notes</th>
+                                <th style="width:45%">Check Description</th>
+                                <th style="width:45%">Expected Result</th>
                                 <th style="width:10%">Delete</th>
                             </tr>
                         </thead>
@@ -110,8 +111,6 @@
                                     {% for error in qform.description.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
                                 </td>
                                 <td>{{ qform.expected_result }}</td>
-                                <td>{{ qform.result_status }}</td>
-                                <td>{{ qform.notes }}</td>
                                 <td class="text-center">
                                     {% if qform.instance.pk %}
                                         {{ qform.DELETE }}

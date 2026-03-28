@@ -43,6 +43,9 @@ class ManufacturingStep(models.Model):
     )
     position_x = models.FloatField(default=0)
     position_y = models.FloatField(default=0)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    execution_notes = models.TextField(blank=True)
 
     class Meta:
         ordering = ['sequence_order']

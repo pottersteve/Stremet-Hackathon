@@ -51,6 +51,18 @@ class ManufacturingStepForm(forms.ModelForm):
         }
 
 
+class DesignerQualityChecklistItemForm(forms.ModelForm):
+    """Designer defines checks only; pass/fail is logged on the shop floor."""
+
+    class Meta:
+        model = QualityChecklistItem
+        fields = ['description', 'expected_result']
+        widgets = {
+            'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'What to check'}),
+            'expected_result': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Expected value/condition'}),
+        }
+
+
 class QualityChecklistItemForm(forms.ModelForm):
     class Meta:
         model = QualityChecklistItem
@@ -80,6 +92,12 @@ class StepMaterialForm(forms.ModelForm):
             'storage_conditions': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Keep dry, max 25C'}),
         }
 
+
+DesignerQualityChecklistFormSet = inlineformset_factory(
+    ManufacturingStep, QualityChecklistItem,
+    form=DesignerQualityChecklistItemForm,
+    extra=1, can_delete=True,
+)
 
 QualityChecklistFormSet = inlineformset_factory(
     ManufacturingStep, QualityChecklistItem,

@@ -15,7 +15,7 @@ from .models import (
 )
 from .forms import (
     ManufacturingPlanForm, ManufacturingStepForm, ManufacturingStepCreateForm,
-    QualityChecklistFormSet, StepMaterialFormSet,
+    DesignerQualityChecklistFormSet, StepMaterialFormSet,
 )
 
 
@@ -169,7 +169,7 @@ def step_detail(request, plan_id, step_id):
 
     if request.method == 'POST':
         form = ManufacturingStepForm(request.POST, request.FILES, instance=step)
-        checklist_formset = QualityChecklistFormSet(request.POST, instance=step, prefix='quality')
+        checklist_formset = DesignerQualityChecklistFormSet(request.POST, instance=step, prefix='quality')
         material_formset = StepMaterialFormSet(request.POST, instance=step, prefix='material')
 
         if form.is_valid() and checklist_formset.is_valid() and material_formset.is_valid():
@@ -182,7 +182,7 @@ def step_detail(request, plan_id, step_id):
             messages.error(request, "Please correct the errors below.")
     else:
         form = ManufacturingStepForm(instance=step)
-        checklist_formset = QualityChecklistFormSet(instance=step, prefix='quality')
+        checklist_formset = DesignerQualityChecklistFormSet(instance=step, prefix='quality')
         material_formset = StepMaterialFormSet(instance=step, prefix='material')
 
     return render(request, 'designer/step_form.html', {

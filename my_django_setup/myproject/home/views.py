@@ -9,6 +9,33 @@ from .models import Order, Client, OrderImage, OrderItem, ChatMessage
 from .auth_utils import ensure_user_profile, get_profile_role
 from designer.models import ManufacturingPlan
 
+from django.utils.dateformat import format
+
+def customer_panel(request):
+    """View for Customers to track orders via Order ID."""
+    if request.method == 'POST':
+        order_id = request.POST.get('order_id')
+        try:
+            order = Order.objects.get(order_id=order_id)
+            
+            # --- THIS IS THE MAGIC LINE ---
+            # It looks into the database, finds all messages for this specific order, and sorts them by oldest to newest
+            chat_history = order.chat_logs.all().order_by('timestamp')
+            print("I exisg")
+            print(f"\n--- CHAT HISTORY FOR ORDER {chat_history} ---")
+            print(order.chat_logs.all())
+            
+            # Now we pass BOTH the order and the chat_msgs to the HTML template
+            return render(request, 'home/customer_tracking.html', {
+                'order': order, 
+                'chat_msgs': chat_history
+                
+            })
+            
+        except Order.DoesNotExist:
+            messages.error(request, f"Order ID '{order_id}' could not be found.")
+            
+    return render(request, 'home/customer_tracking.html')
 
 def _get_role_redirect(user):
     """Return the URL name to redirect to based on user role."""
@@ -160,11 +187,11 @@ def customer_panel(request):
         order_id = request.POST.get('order_id')
         try:
             order = Order.objects.get(order_id=order_id)
-            return render(request, 'home/customer_tracking.html', {'order': order})
+            return render(request, 'costumer/customer_tracking.html', {'order': order})
         except Order.DoesNotExist:
             messages.error(request, f"Order ID '{order_id}' could not be found.")
             
-    return render(request, 'home/customer_tracking.html')
+    return render(request, 'costumer/customer_tracking.html')
 
 
 @login_required(login_url='/login/')
@@ -304,13 +331,33 @@ def support_hub(request):
     elif request.user.is_superuser:
         is_staff = True
 
+    # --- NEW: HANDLE REPLY SUBMISSIONS ---
+    if request.method == 'POST':
+        order_id = request.POST.get('order_id')
+        message_text = request.POST.get('chat_message')
+        attachment = request.FILES.get('chat_attachment')
+
+        # Find the order they are replying to
+        order = get_object_or_404(Order, order_id=order_id)
+        
+        # Save the reply to the database
+        ChatMessage.objects.create(
+            order=order,
+            sender=request.user,
+            message=message_text,
+            attachment=attachment
+            # Notice we don't set step_context here, because staff are replying generally to the order
+        )
+        messages.success(request, f"Reply sent for Order {order_id}.")
+        return redirect('support_hub')
+
     # 2. Fetch the correct messages
     if is_staff:
         # Staff get to see a feed of EVERY message, newest first
         messages_feed = ChatMessage.objects.all().order_by('-timestamp')
     else:
         # Customers only see messages they sent (or replies to them)
-        messages_feed = ChatMessage.objects.filter(sender=request.user).order_by('-timestamp')
+        messages_feed = ChatMessage.objects.filter(order__client__email=request.user.email).order_by('-timestamp')
 
     context = {
         'messages_feed': messages_feed,
@@ -318,3 +365,44 @@ def support_hub(request):
     }
     
     return render(request, 'home/support_hub.html', context)
+
+
+def send_chat_message(request):
+    """AJAX endpoint to receive and save chat messages with files."""
+    if request.method == 'POST':
+        try:
+            order_id = request.POST.get('order_id')
+            message_text = request.POST.get('chat_message')
+            step_context = request.POST.get('step_context')
+            attachment = request.FILES.get('chat_attachment')
+
+            # Find the order
+            order = get_object_or_404(Order, order_id=order_id)
+            
+            # Safely check if the user is logged in, otherwise save as a Guest (None)
+            actual_user = request.user if request.user.is_authenticated else None
+
+            # 🚨 THIS ACTUALLY SAVES TO THE DATABASE 🚨
+            new_msg = ChatMessage.objects.create(
+                order=order,
+                sender=actual_user, 
+                message=message_text,
+                step_context=step_context,
+                attachment=attachment
+            )
+            
+            # Send success signal back to the Javascript
+            return JsonResponse({
+                'success': True,
+                'message': new_msg.message,
+                'step_context': new_msg.step_context,
+                'attachment_url': new_msg.attachment.url if new_msg.attachment else None,
+                'timestamp': format(new_msg.timestamp, "M d, Y - g:i A")
+            })
+            
+        except Exception as e:
+            # If the database crashes, this will print the exact error in your command prompt!
+            print(f"\n--- CHAT SAVE ERROR ---\n{e}\n-----------------------\n")
+            return JsonResponse({'success': False, 'error': str(e)})
+            
+    return JsonResponse({'success': False, 'error': 'Invalid request'})

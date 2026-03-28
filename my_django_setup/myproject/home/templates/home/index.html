@@ -27,7 +27,7 @@
 <div class="container mt-3 mb-2">
     <div class="d-flex justify-content-end align-items-center gap-2 flex-wrap">
         <span class="text-muted small">Signed in as <strong>{{ user.username }}</strong></span>
-        <a href="{% url 'staff_logout' %}" class="btn btn-sm btn-outline-secondary">Log out</a>
+        <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-secondary">Log out</a>
     </div>
 </div>
 {% endif %}

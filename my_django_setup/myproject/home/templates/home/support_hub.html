@@ -89,11 +89,6 @@
                             </div>
                         </div>
                     {% endif %}
-                    {% with nid=msg.id|stringformat:"s" %}
-                    {% with sid="support-ai-msg-"|add:nid %}
-                    {{ msg.message|default:""|json_script:sid }}
-                    {% endwith %}
-                    {% endwith %}
                     
                     <div class="mt-4 pt-3 border-top">
                         <div class="d-flex justify-content-between align-items-baseline flex-wrap gap-2 mb-2">
@@ -102,11 +97,10 @@
                         <div class="mb-3">
                             <button type="button" class="btn btn-sm btn-outline-secondary fw-bold ai-btn"
                                     data-msg-id="{{ msg.id }}"
-                                    data-context="{{ msg.step_context|default:'' }}"
                                     data-order="{{ msg.order.order_id }}">
                                 ✨ Suggest AI Reply
                             </button>
-                            <span class="text-muted small ms-2 d-inline-block">Drafts the message above into the box below; use Send Reply when ready.</span>
+                            <span class="text-muted small ms-2 d-inline-block">Uses the full order thread and CRM details from the database; fills the box below—Send Reply when ready.</span>
                         </div>
                         <form method="POST" action="" enctype="multipart/form-data" class="mt-2">
                             {% csrf_token %}
@@ -143,16 +137,6 @@
         aiButtons.forEach(btn => {
             btn.addEventListener('click', async function() {
                 const msgId = this.getAttribute('data-msg-id');
-                let customerMsg = '';
-                const threadEl = document.getElementById('support-ai-msg-' + msgId);
-                if (threadEl && threadEl.textContent) {
-                    try {
-                        customerMsg = JSON.parse(threadEl.textContent);
-                    } catch (e) {
-                        customerMsg = '';
-                    }
-                }
-                const contextStep = this.getAttribute('data-context');
                 const orderId = this.getAttribute('data-order');
                 const textBox = document.getElementById('reply-input-' + msgId);
                 if (!textBox) return;
@@ -170,11 +154,7 @@
                             'X-CSRFToken': csrfToken
                         },
                         credentials: 'same-origin',
-                        body: JSON.stringify({
-                            customer_message: customerMsg,
-                            context: contextStep || 'General Inquiry',
-                            order_id: orderId
-                        })
+                        body: JSON.stringify({ order_id: orderId })
                     });
                     if (!response.ok) {
                         const errText = await response.text();

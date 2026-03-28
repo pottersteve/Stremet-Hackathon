@@ -1,5 +1,7 @@
 import json
+import os
 import threading
+import time
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, logout
@@ -24,43 +26,36 @@ from .services import (
 )
 
 from gpt4all import GPT4All
-from .models import Order, ChatMessage
 
 
-# Grounded in Stremet Oy (https://stremet.fi): Finnish sheet-metal subcontractor since 1995,
-# Salo, quality-focused industrial work; portal context from this app's order/support flows.
-STREMET_SUPPORT_SYSTEM_PROMPT = """You are drafting replies for Stremet customer support in the Stremet order portal.
+# Grounded in Stremet Oy (https://stremet.fi); output must read as a real Stremet support email.
+STREMET_SUPPORT_SYSTEM_PROMPT = """You write AS Stremet customer support sending the next message to the client.
 
-COMPANY (use only as general background; never invent confidential or deal-specific facts):
-Stremet is a Finnish industrial metal partner (Stremet Oy, established 1995, Salo region), focused on turning sheet metal and steel into reliable components for industry: punching, laser cutting, bending, welding, surface treatment, assembly, and design support. The organisation values quality (e.g. ISO 9001-oriented ways of working), predictable lead times, sustainability (renewable energy use is a stated priority on public materials), and long-term customer relationships. In this web app, customers and staff exchange messages about manufacturing orders, production stages, quotes, drawings, and delivery—your tone should match that professional, industrial context.
+Stremet (Stremet Oy) is a Finnish industrial sheet-metal and steel partner (since 1995, Salo region): punching, laser cutting, bending, welding, surface treatment, assembly, design support. Values: quality, reliable lead times, sustainability, long-term industrial relationships.
 
-YOUR ROLE:
-- You write as Stremet support: helpful, calm, and human. You are not a lawyer, not engineering sign-off, and not final pricing authority.
-- Primary goal: acknowledge the customer, clarify what you understood, and move the conversation toward a constructive next step inside normal business support.
+You receive structured facts from our database (order, customer contact, full message thread, and who is replying on our side). Use those facts naturally—greet and refer using real names, company, and order id when provided. Do not invent exact dates, prices, tonnages, or legal commitments that are not in the data; if something is missing, say you will confirm with production/sales and follow up.
 
-TONE AND CONDUCT (non-negotiable):
-- Always be kind, respectful, and patient—even if the customer is upset, brief, or unclear. Never mock, shame, blame, or use sarcasm.
-- Stay neutral and professional. Do not escalate emotionally; prefer de-escalation, empathy ("I understand this is frustrating"), and practical reassurance.
-- Do not insult competitors or individuals. No discriminatory, hateful, sexual, or harassing content—ever.
-- If the customer is hostile, remain polite, set a respectful boundary, and invite them to continue working with your team calmly.
+Tone: warm, professional, calm, concise. If the customer is upset, acknowledge it briefly and stay constructive. No harassment, discrimination, or abuse. Refuse harmful or illegal requests briefly and redirect to legitimate order support.
 
-ACCURACY AND LIMITS:
-- Do not invent order details, dates, quantities, prices, discounts, legal outcomes, or binding promises. If specifics are missing, say you will pass the request to the team or ask one clear, polite follow-up question.
-- Do not claim to have accessed private systems beyond what the user message states.
-- If asked for something harmful, illegal, or unethical, refuse briefly and kindly, and steer back to legitimate order/support topics.
+CRITICAL OUTPUT RULES:
+- Your entire output is ONLY the outbound reply text the customer will read (like an email body). 
+- Do NOT prefix with assistant chatter: no "Sure!", "Here is a draft", "You could write", "Below is", no markdown code fences, no bullet list of instructions to yourself.
+- Do NOT role-play explaining what you are doing. Start as the support person would (e.g. greeting or direct answer).
+- Use real names/sign-offs consistent with the "You are replying as" section when appropriate (e.g. first name + Stremet / team).
+- Match the customer's language when the thread is clearly in one language; otherwise use clear professional English.
 
-OUTPUT STYLE:
-- Match the customer's language when it is obvious; otherwise use clear professional English.
-- Write a complete, ready-to-send email-style reply (one or more short paragraphs as needed). No bracket placeholders such as [name] or [date]—use neutral wording ("your order", "our team", "we will confirm") instead.
-- End with an appropriate next step when possible (e.g. confirm information, offer to check with production, suggest documentation they can attach).
-
-You must follow these rules in every reply, without exception."""
+Follow these rules on every response."""
 
 
 try:
     print("Loading AI Model...")
     # Orca Mini GGUF standard context window is 2048 tokens; keep n_ctx aligned.
-    ai_model = GPT4All("orca-mini-3b-gguf2-q4_0.gguf", n_ctx=2048)
+    # n_threads: more CPU workers for faster prompt eval and time-to-first-token.
+    ai_model = GPT4All(
+        "orca-mini-3b-gguf2-q4_0.gguf",
+        n_ctx=2048,
+        n_threads=os.cpu_count() or 4,
+    )
     print("AI Model loaded successfully!")
 except Exception as e:
     print(f"Failed to load AI: {e}")
@@ -70,15 +65,35 @@ except Exception as e:
 _ai_generate_lock = threading.Lock()
 
 
-def _build_support_ai_user_prompt(order_id, context_step, customer_msg):
-    return (
-        f"Order reference: {order_id}\n"
-        f"Stage / topic context from the portal: {context_step}\n\n"
-        f"Customer message:\n{customer_msg}\n\n"
-        "Draft the full suggested reply from Stremet support, following your system instructions. "
-        "Keep it as concise as the situation allows while still being helpful; use more detail only when the "
-        "customer clearly needs it."
-    )
+def _warmup_ai_model_delayed():
+    """Prime llama runtime after a short delay so the server can bind first."""
+    if ai_model is None:
+        return
+    time.sleep(1.0)
+    try:
+        with _ai_generate_lock:
+            with ai_model.chat_session(system_prompt=STREMET_SUPPORT_SYSTEM_PROMPT):
+                # One greedy token warms the same path as live streaming.
+                for _ in ai_model.generate(
+                    "ok",
+                    max_tokens=1,
+                    temp=0.0,
+                    top_k=1,
+                    top_p=1.0,
+                    streaming=True,
+                    n_batch=128,
+                ):
+                    break
+    except Exception as exc:
+        print(f"AI warm-up skipped: {exc}")
+
+
+if ai_model is not None:
+    threading.Thread(
+        target=_warmup_ai_model_delayed,
+        name="gpt4all-warmup",
+        daemon=True,
+    ).start()
 
 
 def _user_is_support_staff(user):
@@ -95,9 +110,139 @@ def _user_is_support_staff(user):
     return role in ("admin", "manufacturer", "designer")
 
 
+# Keep thread excerpt within model context (2048 tokens total with system + template).
+_AI_THREAD_MAX_CHARS = 5000
+
+
+def _user_can_access_order_for_ai(user, order):
+    if _user_is_support_staff(user):
+        return True
+    uemail = (user.email or "").strip().lower()
+    if uemail and (order.client.email or "").strip().lower() == uemail:
+        return True
+    return ChatMessage.objects.filter(order=order, sender=user).exists()
+
+
+def _display_name(user):
+    if user is None:
+        return "Guest"
+    full = (user.get_full_name() or "").strip()
+    if full:
+        return f"{full} ({user.username})"
+    return user.username or "Unknown"
+
+
+def _message_role_line(msg):
+    if msg.sender_id is None:
+        return "Guest / unidentified portal sender"
+    role = get_profile_role(msg.sender)
+    if role == "customer":
+        return "Customer"
+    if role == "admin":
+        return "Stremet team — administrator"
+    if role == "manufacturer":
+        return "Stremet team — manufacturing"
+    if role == "designer":
+        return "Stremet team — designer"
+    return f"Portal user — {role or 'unknown'}"
+
+
+def _format_order_facts(order):
+    lines = [
+        f"Order ID: {order.order_id}",
+        f"Production stage (system field): {order.get_status_display()}",
+        f"Material / grade: {order.steel_grade}",
+        f"Dimensions: {order.dimensions}",
+        f"Quantity (tons): {order.quantity_tons}",
+        f"Target delivery date: {order.target_delivery}",
+        f"Order record created: {order.created_at.isoformat(timespec='minutes')}",
+    ]
+    if order.product_form:
+        lines.append(f"Product form: {order.product_form}")
+    if order.surface_finish:
+        lines.append(f"Surface finish: {order.surface_finish}")
+    extras = []
+    if order.heat_treatment:
+        extras.append("heat treatment requested")
+    if order.ultrasonic_test:
+        extras.append("ultrasonic test requested")
+    if order.mill_certificate:
+        extras.append("mill certificate requested")
+    if extras:
+        lines.append("Options: " + "; ".join(extras))
+    lines.append(f"Client company: {order.client.company_name}")
+    lines.append(f"Client email (CRM): {order.client.email}")
+    if order.client.name:
+        lines.append(f"Client contact name: {order.client.name}")
+    items = list(order.items.all()[:15])
+    if items:
+        lines.append("Line items:")
+        for it in items:
+            lines.append(
+                f"  - {it.item_name} × {it.quantity} "
+                f"(shop floor status: {it.current_status})"
+            )
+    return "\n".join(lines)
+
+
+def _format_replying_user(user):
+    role = get_profile_role(user)
+    name = (user.get_full_name() or "").strip() or user.username
+    return (
+        f"Sign or speak as: {name}\n"
+        f"Username: {user.username}\n"
+        f"Email: {user.email or '—'}\n"
+        f"Portal role: {role or '—'}"
+    )
+
+
+def _build_thread_transcript(order):
+    msgs = list(
+        ChatMessage.objects.filter(order=order)
+        .order_by("timestamp")
+        .select_related("sender")
+    )
+    blocks = []
+    for i, msg in enumerate(msgs, start=1):
+        ts = msg.timestamp.isoformat(sep=" ", timespec="minutes")
+        who = _display_name(msg.sender) if msg.sender_id else "Guest (not logged in)"
+        role_line = _message_role_line(msg)
+        step = f"\nFlow / step context: {msg.step_context}" if msg.step_context else ""
+        att = "\n[Portal note: file attachment on this message]" if msg.attachment else ""
+        blocks.append(
+            f"--- Message {i} | {ts} ---\n"
+            f"From: {who} | Role: {role_line}{step}\n"
+            f"{msg.message}{att}"
+        )
+    text = "\n\n".join(blocks)
+    if len(text) > _AI_THREAD_MAX_CHARS:
+        text = (
+            "[Older messages truncated. Most recent part of the thread follows.]\n\n"
+            + text[-_AI_THREAD_MAX_CHARS:]
+        )
+    return text or "(No messages yet in this order thread.)"
+
+
+def _build_support_ai_user_context(order, replying_user):
+    return (
+        "=== ORDER (from database) ===\n"
+        f"{_format_order_facts(order)}\n\n"
+        "=== CUSTOMER / CLIENT CONTACT (from database) ===\n"
+        f"Company: {order.client.company_name}\n"
+        f"Contact email: {order.client.email}\n"
+        f"Contact name on file: {order.client.name or '—'}\n\n"
+        "=== YOU ARE REPLYING AS (logged-in user; be consistent with this identity) ===\n"
+        f"{_format_replying_user(replying_user)}\n\n"
+        "=== FULL SUPPORT THREAD FOR THIS ORDER (oldest first) ===\n"
+        f"{_build_thread_transcript(order)}\n\n"
+        "Write the next Stremet support reply to the customer, continuing this conversation. "
+        "Use the facts above. Output only the outgoing message body—no preamble or meta."
+    )
+
+
 @login_required(login_url="login")
 def generate_ai_suggestion(request):
-    """Stream an AI draft for a support reply as plain text (not auto-sent). Any logged-in user may use this."""
+    """Stream an AI draft from full order thread + DB facts (plain text, not auto-sent)."""
     ensure_user_profile(request.user)
 
     if request.method != "POST":
@@ -112,9 +257,13 @@ def generate_ai_suggestion(request):
             content_type="text/plain; charset=utf-8",
         )
 
-    customer_msg = (data.get("customer_message") or "").strip()
-    context_step = data.get("context") or "General Inquiry"
-    order_id = data.get("order_id")
+    order_id = (data.get("order_id") or "").strip()
+    if not order_id:
+        return HttpResponse(
+            "order_id is required.",
+            status=400,
+            content_type="text/plain; charset=utf-8",
+        )
 
     if not ai_model:
         return HttpResponse(
@@ -123,7 +272,26 @@ def generate_ai_suggestion(request):
             content_type="text/plain; charset=utf-8",
         )
 
-    user_prompt = _build_support_ai_user_prompt(order_id, context_step, customer_msg)
+    order = (
+        Order.objects.filter(order_id=order_id)
+        .select_related("client")
+        .prefetch_related("items")
+        .first()
+    )
+    if order is None:
+        return HttpResponse(
+            "Order not found.",
+            status=404,
+            content_type="text/plain; charset=utf-8",
+        )
+    if not _user_can_access_order_for_ai(request.user, order):
+        return HttpResponse(
+            "You do not have access to AI suggestions for this order.",
+            status=403,
+            content_type="text/plain; charset=utf-8",
+        )
+
+    user_prompt = _build_support_ai_user_context(order, request.user)
 
     def token_stream():
         try:
@@ -137,6 +305,8 @@ def generate_ai_suggestion(request):
                         top_p=0.85,
                         repeat_penalty=1.15,
                         streaming=True,
+                        # Larger batches speed up prompt processing (time-to-first-token).
+                        n_batch=128,
                     )
                     for token in stream:
                         if isinstance(token, str):

@@ -1,42 +1,43 @@
 import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-# FIXED: Standardized the auth imports so they don't crash
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login as auth_login, logout
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 
 from .models import Order, Client, OrderImage, OrderItem
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.contrib.auth import authenticate, login as auth_login
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.contrib.auth import authenticate, login as auth_login
+from designer.models import ManufacturingPlan
+
+def _get_role_redirect(user):
+    """Return the URL name to redirect to based on user role."""
+    if hasattr(user, 'profile') and user.profile.role == 'designer':
+        return 'designer_dashboard'
+    return 'staff_dashboard'
+
 
 def staff_login(request):
     """Handles authentication for all internal staff."""
-    # If they are already logged in, send them straight to the dashboard
     if request.user.is_authenticated:
-        return redirect('staff_dashboard')
+        return redirect(_get_role_redirect(request.user))
 
     if request.method == 'POST':
-        username = request.POST.get('username') 
+        username = request.POST.get('username')
         password = request.POST.get('password')
-        
+
         user = authenticate(request, username=username, password=password)
-        
+
         if user is not None:
             auth_login(request, user)
             messages.success(request, f"Welcome back, {user.username}!")
-            return redirect('staff_dashboard')
+            return redirect(_get_role_redirect(user))
         else:
             messages.error(request, "Invalid username or password.")
-            
-    # Make sure this matches the actual name of your HTML file!
+
     return render(request, 'home/staff_login.html')
 def staff_logout(request):
-    pass
+    logout(request)
+    messages.info(request, "You have been logged out.")
+    return redirect('staff_login')
 
 def dashboard(request):
     """Renders the main landing page."""
@@ -47,12 +48,9 @@ def dashboard(request):
 # ==========================================
 
 def login_view(request):
-    """Handles login for EVERYONE (Customers, Admins, Manufacturers)."""
+    """Handles login for EVERYONE (Customers, Admins, Manufacturers, Designers)."""
     if request.user.is_authenticated:
-        # If they already logged in, route them to the right place
-        if hasattr(request.user, 'profile') and request.user.profile.role in ['admin', 'manufacturer']:
-            return redirect('staff_dashboard')
-        return redirect('home_dashboard')
+        return redirect(_get_role_redirect(request.user))
 
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -61,13 +59,9 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
-            login(request, user) # FIXED: This now works perfectly
+            auth_login(request, user)
             messages.success(request, f"Welcome back, {user.username}!")
-            
-            # Route them based on their role in the UserProfile database
-            if hasattr(user, 'profile') and user.profile.role in ['admin', 'manufacturer']:
-                return redirect('staff_dashboard')
-            return redirect('home_dashboard')
+            return redirect(_get_role_redirect(user))
         else:
             messages.error(request, "Invalid username or password.")
 
@@ -101,7 +95,7 @@ def customer_panel(request):
 # UNIFIED STAFF DASHBOARD
 # ==========================================
 
-@login_required(login_url='login')
+@login_required(login_url='/login/')
 def staff_dashboard(request):
     """
     Unified view: Checks user roles from UserProfile to show the correct features.
@@ -167,6 +161,11 @@ def staff_dashboard(request):
                 images = request.FILES.getlist('reference_images')
                 for img in images:
                     OrderImage.objects.create(order=new_order, image=img)
+
+                ManufacturingPlan.objects.create(
+                    order=new_order,
+                    name=f"Plan for {new_order.order_id}",
+                )
 
                 messages.success(request, f"Order {new_order.order_id} successfully created!")
                 return redirect('staff_dashboard')

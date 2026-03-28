@@ -1,0 +1,254 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stremet | Step: {{ step.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'designer/css/designer.css' %}">
+</head>
+<body>
+
+<nav class="navbar navbar-dark designer-header">
+    <div class="container d-flex justify-content-between align-items-center">
+        <span class="navbar-brand mb-0 h4">
+            <a href="{% url 'designer_dashboard' %}" class="text-white text-decoration-none">Dashboard</a>
+            &rsaquo;
+            <a href="{% url 'designer_plan_editor' plan_id=plan.pk %}" class="text-white text-decoration-none">{{ plan.name }}</a>
+            &rsaquo; {{ step.name }}
+        </span>
+        <div>
+            <span class="text-light me-3">{{ request.user.username }}</span>
+            <a href="{% url 'staff_logout' %}" class="btn btn-outline-light btn-sm">Logout</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <!-- Step details -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white border-0 pt-3">
+                <h4 class="mb-0">Step Details</h4>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Step Name</label>
+                        {{ form.name }}
+                        {% for error in form.name.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Status</label>
+                        {{ form.status }}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Sequence Order</label>
+                        {{ form.sequence_order }}
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Description</label>
+                        {{ form.description }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">SOP Document (upload)</label>
+                        {{ form.sop_document }}
+                        {% if step.sop_document %}
+                            <small class="text-muted">Current: <a href="{{ step.sop_document.url }}" target="_blank">{{ step.sop_document.name }}</a></small>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Estimated Duration (hours)</label>
+                        {{ form.estimated_duration_hours }}
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">SOP Text Instructions</label>
+                        {{ form.sop_text }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quality Checklist -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Quality Checklist</h5>
+                <button type="button" class="btn btn-success btn-sm" id="add-quality-row">+ Add Check</button>
+            </div>
+            <div class="card-body">
+                {{ checklist_formset.management_form }}
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle" id="quality-table">
+                        <thead>
+                            <tr>
+                                <th style="width:30%">Check Description</th>
+                                <th style="width:20%">Expected Result</th>
+                                <th style="width:15%">Status</th>
+                                <th style="width:25%">Notes</th>
+                                <th style="width:10%">Delete</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for qform in checklist_formset %}
+                            <tr class="quality-row {% if qform.instance.pk %}{% else %}empty-form{% endif %}">
+                                <td>
+                                    {{ qform.id }}
+                                    {{ qform.description }}
+                                    {% for error in qform.description.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                                </td>
+                                <td>{{ qform.expected_result }}</td>
+                                <td>{{ qform.result_status }}</td>
+                                <td>{{ qform.notes }}</td>
+                                <td class="text-center">
+                                    {% if qform.instance.pk %}
+                                        {{ qform.DELETE }}
+                                    {% else %}
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-row">X</button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Materials -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Required Materials</h5>
+                <button type="button" class="btn btn-success btn-sm" id="add-material-row">+ Add Material</button>
+            </div>
+            <div class="card-body">
+                {{ material_formset.management_form }}
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle" id="material-table">
+                        <thead>
+                            <tr>
+                                <th>Material Name</th>
+                                <th>Specification</th>
+                                <th style="width:80px">Qty</th>
+                                <th style="width:70px">Unit</th>
+                                <th>Storage Location</th>
+                                <th>Storage Conditions</th>
+                                <th style="width:60px">Delete</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mform in material_formset %}
+                            <tr class="material-row {% if mform.instance.pk %}{% else %}empty-form{% endif %}">
+                                <td>
+                                    {{ mform.id }}
+                                    {{ mform.material_name }}
+                                    {% for error in mform.material_name.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                                </td>
+                                <td>{{ mform.specification }}</td>
+                                <td>{{ mform.quantity }}</td>
+                                <td>{{ mform.unit }}</td>
+                                <td>{{ mform.storage_location }}</td>
+                                <td>{{ mform.storage_conditions }}</td>
+                                <td class="text-center">
+                                    {% if mform.instance.pk %}
+                                        {{ mform.DELETE }}
+                                    {% else %}
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-row">X</button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between mb-5">
+            <a href="{% url 'designer_plan_editor' plan_id=plan.pk %}" class="btn btn-outline-secondary">&larr; Back to Plan</a>
+            <button type="submit" class="btn btn-primary px-4">Save Step</button>
+        </div>
+    </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function addFormsetRow(tableId, prefix) {
+        var table = document.getElementById(tableId).querySelector('tbody');
+        var totalFormsInput = document.querySelector('#id_' + prefix + '-TOTAL_FORMS');
+        var total = parseInt(totalFormsInput.value);
+
+        var lastRow = table.querySelector('tr:last-child');
+        if (!lastRow) return;
+        var newRow = lastRow.cloneNode(true);
+
+        newRow.innerHTML = newRow.innerHTML.replace(
+            new RegExp(prefix + '-(\\d+)-', 'g'),
+            prefix + '-' + total + '-'
+        );
+        newRow.innerHTML = newRow.innerHTML.replace(
+            new RegExp('id="id_' + prefix + '-(\\d+)-id"[^>]*value="[^"]*"', 'g'),
+            'id="id_' + prefix + '-' + total + '-id" value=""'
+        );
+
+        var inputs = newRow.querySelectorAll('input:not([type=hidden]):not([type=checkbox]), select, textarea');
+        inputs.forEach(function(input) {
+            if (input.type === 'checkbox') {
+                input.checked = false;
+            } else {
+                input.value = '';
+            }
+        });
+
+        var hiddenId = newRow.querySelector('input[name$="-id"]');
+        if (hiddenId) hiddenId.value = '';
+
+        var deleteCheckbox = newRow.querySelector('input[name$="-DELETE"]');
+        if (deleteCheckbox) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-outline-danger btn-sm remove-row';
+            btn.textContent = 'X';
+            deleteCheckbox.parentNode.replaceChild(btn, deleteCheckbox);
+        }
+
+        table.appendChild(newRow);
+        totalFormsInput.value = total + 1;
+
+        bindRemoveButtons();
+    }
+
+    function bindRemoveButtons() {
+        document.querySelectorAll('.remove-row').forEach(function(btn) {
+            btn.onclick = function() {
+                btn.closest('tr').remove();
+            };
+        });
+    }
+
+    document.getElementById('add-quality-row').addEventListener('click', function() {
+        addFormsetRow('quality-table', 'quality');
+    });
+
+    document.getElementById('add-material-row').addEventListener('click', function() {
+        addFormsetRow('material-table', 'material');
+    });
+
+    bindRemoveButtons();
+});
+</script>
+</body>
+</html>

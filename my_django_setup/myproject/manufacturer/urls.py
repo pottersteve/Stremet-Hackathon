@@ -1,6 +1,14 @@
-from django.urls import path
-from . import views
+from django.contrib import admin
+from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
-    path('', views.manufacturer_panel, name='manufacturer_panel'),
+    path('admin/', admin.site.urls), # The built-in Django database admin
+    
+    # Now, the 'home' app handles EVERYTHING!
+    path('', include('home.urls')), 
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

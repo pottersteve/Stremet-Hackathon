@@ -1,0 +1,229 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stremet | Staff Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <style>
+        body { background-color: #f4f6f9; }
+        .staff-header { background-color: #2c3e50; color: white; padding: 20px 0; }
+        .section-card { margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+<div class="staff-header mb-4">
+    <div class="container d-flex justify-content-between align-items-center">
+        <h2 class="mb-0">Stremet Staff Dashboard</h2>
+        <div>
+            <span class="me-3 text-light">Logged in as: <strong>{{ request.user.username }}</strong></span>
+            <a href="{% url 'staff_logout' %}" class="btn btn-outline-light btn-sm">Logout</a>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if is_admin %}
+    <div class="card shadow-sm mb-5 border-0 border-top border-4 border-primary">
+        <div class="card-header bg-white pb-0 border-0 pt-4 px-4">
+            <h3 class="fw-bold text-primary mb-0">Create New Order</h3>
+            <p class="text-muted small">Enter specifications to generate a new manufacturing ticket.</p>
+        </div>
+        <div class="card-body p-4">
+            <form action="{% url 'staff_dashboard' %}" method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="row">
+                    <div class="col-lg-7">
+                        <div class="card section-card">
+                            <div class="card-header bg-light fw-bold">1. Client & Order Details</div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Order ID</label>
+                                        <input type="text" class="form-control" name="order_id" placeholder="e.g., ORD-2026-8991" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Client Company</label>
+                                        <input type="text" class="form-control" name="company_name" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Contact Email</label>
+                                        <input type="email" class="form-control" name="client_email" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Target Delivery Date</label>
+                                        <input type="date" class="form-control" name="target_delivery" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card section-card">
+                            <div class="card-header bg-light fw-bold">2. Technical Specifications</div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Steel Grade</label>
+                                        <select class="form-select" name="steel_grade">
+                                            <option value="304_ss">304 Stainless Steel</option>
+                                            <option value="316_ss">316 Marine Grade Stainless</option>
+                                            <option value="a36_carbon">A36 Mild Carbon Steel</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Product Form</label>
+                                        <select class="form-select" name="product_form">
+                                            <option value="plate">Plate / Sheet</option>
+                                            <option value="coil">Rolled Coil</option>
+                                            <option value="bar">Structural Bar</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Thickness (mm)</label>
+                                        <input type="number" step="0.01" class="form-control" name="dim_thickness">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Width (mm)</label>
+                                        <input type="number" step="0.01" class="form-control" name="dim_width">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Length (mm)</label>
+                                        <input type="number" step="0.01" class="form-control" name="dim_length">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Total Qty (Metric Tons)</label>
+                                        <input type="number" step="0.1" class="form-control" name="quantity_tons" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Surface Finish</label>
+                                        <select class="form-select" name="surface_finish">
+                                            <option value="hot_rolled">Hot Rolled (HR)</option>
+                                            <option value="cold_rolled">Cold Rolled (CR)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <hr class="my-4">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold d-block">Processing & Testing</label>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" name="heat_treatment" value="yes">
+                                        <label class="form-check-label">Heat Treatment</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" name="ultrasonic_test" value="yes">
+                                        <label class="form-check-label">Ultrasonic Testing</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-5">
+                        <div class="card section-card">
+                            <div class="card-header bg-light fw-bold">3. Blueprints & Files</div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Upload CAD (.pdf, .dwg)</label>
+                                    <input class="form-control" type="file" name="blueprint_file" accept=".pdf,.dwg,.dxf">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card section-card">
+                            <div class="card-header bg-light fw-bold">4. Notes</div>
+                            <div class="card-body">
+                                <textarea class="form-control" name="admin_notes" rows="3"></textarea>
+                            </div>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" name="create_order" class="btn btn-primary btn-lg">Generate Order</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+
+    {% if is_mfg %}
+    <div class="card shadow-sm mb-5 border-0 border-top border-4 border-warning bg-secondary text-light" style="background-color: #8c8c8c !important;">
+        <div class="card-header border-0 pt-4 px-4 text-center">
+            <h3 class="fw-bold mb-0">Factory Floor Tracking</h3>
+        </div>
+        <div class="card-body p-4">
+            
+            <div class="row justify-content-center mb-4">
+                <div class="col-md-6">
+                    <form method="POST" action="{% url 'staff_dashboard' %}">
+                        {% csrf_token %}
+                        <div class="input-group shadow-sm">
+                            <input type="text" class="form-control form-control-lg" name="order_id" placeholder="Scan or Enter Order ID..." required>
+                            <button class="btn btn-dark px-4" name="search_order" type="submit">Load Order</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {% if order %}
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="mb-0">Items for Order: {{ order.order_id }}</h4>
+                    <span class="badge bg-success fs-6 px-3 py-2">{{ order.get_status_display }}</span>
+                </div>
+
+                {% for item in order.items.all %}
+                    <div class="item-card text-dark">
+                        <h5 class="mb-4 text-center">Item #{{ forloop.counter }}: {{ item.item_name }} (Qty: {{ item.quantity }})</h5>
+                        
+                        <div class="flowchart-container">
+                            <div class="process-step">
+                                <div class="process-box {% if item.step_1_programming %}done{% endif %}">
+                                    <div class="step-label {% if item.step_1_programming %}text-white{% endif %}">Programming /<br>Designing</div>
+                                </div>
+                                <button class="btn btn-mfg done-btn {% if item.step_1_programming %}btn-done-active{% else %}btn-done-inactive{% endif %}" 
+                                        data-item-id="{{ item.id }}" data-step="1">Done</button>
+                            </div>
+
+                            <div class="process-step">
+                                <div class="process-box {% if item.step_2_cutting %}done{% endif %}">
+                                    <div class="step-label {% if item.step_2_cutting %}text-white{% endif %}">Cutting<br>(2D)</div>
+                                </div>
+                                <button class="btn btn-mfg done-btn {% if item.step_2_cutting %}btn-done-active{% else %}btn-done-inactive{% endif %}" 
+                                        data-item-id="{{ item.id }}" data-step="2">Done</button>
+                            </div>
+                            
+                            <div class="process-step">
+                                <div class="process-box {% if item.step_5_delivery %}done{% endif %}">
+                                    <div class="step-label {% if item.step_5_delivery %}text-white{% endif %}">Delivery /<br>3rd Party</div>
+                                </div>
+                                <button class="btn btn-mfg done-btn {% if item.step_5_delivery %}btn-done-active{% else %}btn-done-inactive{% endif %}" 
+                                        data-item-id="{{ item.id }}" data-step="5">Done</button>
+                            </div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="alert alert-warning text-dark">No items logged for this order. (Add items via the Django Admin Panel).</div>
+                {% endfor %}
+            {% endif %}
+            
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

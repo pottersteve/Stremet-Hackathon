@@ -4,13 +4,13 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    path('admin/', admin.site.urls), # The built-in Django database admin
+    path('admin/', admin.site.urls), 
     
-    # Your 4 Custom Apps
+    # 1. Route customer traffic to the Customer app
+    path('customer/', include('customer.urls')), 
+    
+    # 2. Route everything else (dashboard, staff logins) to the Home app
     path('', include('home.urls')), 
-    path('portal/admin/', include('administrator.urls')),
-    path('portal/customer/', include('customer.urls')),
-    path('portal/production/', include('manufacturer.urls')),
 ]
 
 if settings.DEBUG:

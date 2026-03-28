@@ -1,5 +1,175 @@
-from django.shortcuts import render
+import json
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+
+# Importing all your models from the home app
+from .models import Order, Client, OrderImage, OrderItem
+
+# ==========================================
+# PUBLIC PAGES (No login required)
+# ==========================================
 
 def dashboard(request):
-    """Renders the main three-panel landing page."""
+    """Renders the main landing page."""
     return render(request, 'home/index.html')
+
+def customer_panel(request):
+    """View for Customers to track orders via Order ID."""
+    if request.method == 'POST':
+        order_id = request.POST.get('order_id')
+        try:
+            order = Order.objects.get(order_id=order_id)
+            return render(request, 'home/customer_tracking.html', {'order': order})
+        except Order.DoesNotExist:
+            messages.error(request, f"Order ID '{order_id}' could not be found.")
+            
+    return render(request, 'home/customer_tracking.html')
+
+# ==========================================
+# AUTHENTICATION
+# ==========================================
+
+def staff_login(request):
+    """Handles authentication for all internal staff."""
+    if request.user.is_authenticated:
+        return redirect('staff_dashboard')
+
+    if request.method == 'POST':
+        username = request.POST.get('username') 
+        password = request.POST.get('password')
+        
+        user = authenticate(request, username=username, password=password)
+        
+        if user is not None:
+            auth_login(request, user)
+            messages.success(request, f"Welcome back, {user.username}!")
+            return redirect('staff_dashboard')
+        else:
+            messages.error(request, "Invalid username or password.")
+            
+    return render(request, 'home/staff_login.html')
+
+def staff_logout(request):
+    """Logs the user out and sends them back to the login screen."""
+    auth_logout(request)
+    messages.info(request, "You have been successfully logged out.")
+    return redirect('staff_login')
+
+# ==========================================
+# UNIFIED STAFF DASHBOARD
+# ==========================================
+
+@login_required(login_url='staff_login')
+def staff_dashboard(request):
+    """
+    Unified view: Checks user roles to show the correct features.
+    Admins see order creation; Manufacturers see production tracking.
+    """
+    # 1. IDENTIFY USER ROLES (Here is where we declare the variables!)
+    is_admin = request.user.groups.filter(name='Administrator').exists() or request.user.is_superuser
+    is_mfg = request.user.groups.filter(name='Manufacturer').exists() or request.user.is_superuser
+
+    context = {
+        'is_admin': is_admin,
+        'is_mfg': is_mfg,
+    }
+
+    # 2. HANDLE FORM SUBMISSIONS
+    if request.method == 'POST':
+        
+        # --- IF ADMINISTRATOR SUBMITTED A NEW ORDER ---
+        if is_admin and 'create_order' in request.POST:
+            try:
+                company_name = request.POST.get('company_name')
+                client_email = request.POST.get('client_email')
+                
+                client, created = Client.objects.get_or_create(
+                    email=client_email,
+                    defaults={'company_name': company_name}
+                )
+
+                thickness = request.POST.get('dim_thickness') or '0'
+                width = request.POST.get('dim_width') or '0'
+                length = request.POST.get('dim_length') or '0'
+                dimensions_str = f"{thickness}mm x {width}mm x {length}mm"
+
+                qty = request.POST.get('quantity_tons')
+                if not qty:
+                    qty = 0
+
+                new_order = Order.objects.create(
+                    order_id=request.POST.get('order_id'),
+                    client=client,
+                    target_delivery=request.POST.get('target_delivery'),
+                    steel_grade=request.POST.get('steel_grade'),
+                    product_form=request.POST.get('product_form'),
+                    dimensions=dimensions_str,
+                    quantity_tons=qty,
+                    surface_finish=request.POST.get('surface_finish'),
+                    heat_treatment=(request.POST.get('heat_treatment') == 'yes'),
+                    ultrasonic_test=(request.POST.get('ultrasonic_test') == 'yes'),
+                    mill_certificate=(request.POST.get('mill_certificate') == 'yes'),
+                    blueprint_file=request.FILES.get('blueprint_file'),
+                    admin_notes=request.POST.get('admin_notes')
+                )
+
+                images = request.FILES.getlist('reference_images')
+                for img in images:
+                    OrderImage.objects.create(order=new_order, image=img)
+
+                messages.success(request, f"Order {new_order.order_id} successfully created!")
+                return redirect('staff_dashboard')
+
+            except Exception as e:
+                print(f"\n--- DATABASE SAVE ERROR ---\n{e}\n---------------------------\n")
+                messages.error(request, f"Error saving order: {e}")
+                return redirect('staff_dashboard')
+
+        # --- IF MANUFACTURER SEARCHED FOR AN ORDER ---
+        if is_mfg and 'search_order' in request.POST:
+            search_id = request.POST.get('order_id')
+            try:
+                order = Order.objects.get(order_id=search_id)
+                context['order'] = order
+            except Order.DoesNotExist:
+                messages.error(request, f"Order ID '{search_id}' could not be found.")
+
+    return render(request, 'home/unified_staff_panel.html', context)
+
+
+# ==========================================
+# AJAX ENDPOINT FOR THE FLOWCHART
+# ==========================================
+
+def update_item_status(request):
+    """Hidden endpoint to update the database via Javascript AJAX."""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            item_id = data.get('item_id')
+            step_number = data.get('step')
+            is_done = data.get('is_done')
+
+            item = OrderItem.objects.get(id=item_id)
+
+            if step_number == 1:
+                item.step_1_programming = is_done
+            elif step_number == 2:
+                item.step_2_cutting = is_done
+            elif step_number == 3:
+                item.step_3_forming = is_done
+            elif step_number == 4:
+                item.step_4_joining = is_done
+            elif step_number == 5:
+                item.step_5_delivery = is_done
+
+            item.save()
+            return JsonResponse({'success': True})
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+            
+    return JsonResponse({'success': False, 'error': 'Invalid request'})

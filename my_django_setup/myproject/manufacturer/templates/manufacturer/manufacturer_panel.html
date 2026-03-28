@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stremet | Manufacturer Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="portal-header">
+    <div class="container d-flex justify-content-between align-items-center">
+        <h2 class="mb-0">Factory Floor: Production Tracking</h2>
+        <a href="{% url 'home_dashboard' %}" class="btn btn-outline-light">Back to Home</a>
+    </div>
+</div>
+
+<div class="container mb-5">
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-danger alert-dismissible fade show shadow-sm">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="POST" action="">
+                        {% csrf_token %}
+                        <label class="form-label fw-bold">Scan or Enter Order ID</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control form-control-lg" name="order_id" placeholder="e.g. ORD-90210" required>
+                            <button class="btn btn-dark px-4" type="submit">Load Order</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if order %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="text-white mb-0">Items for Order: {{ order.order_id }}</h4>
+<span class="badge bg-success fs-6 px-3 py-2">{{ order.get_status_display }}</span>
+        </div>
+
+{% for item in order.items.all %}
+    <div class="item-card">
+        <h5 class="mb-4 text-center">Item #{{ forloop.counter }}: {{ item.item_name }} (Qty: {{ item.quantity }})</h5>
+        
+        <div class="flowchart-container">
+            
+            <div class="process-step">
+                <div class="process-box {% if item.step_1_programming %}done{% endif %}">
+                    <div class="step-label {% if item.step_1_programming %}text-white{% endif %}">Programming /<br>Designing</div>
+                    <div class="step-tooltip">CAD blueprints converted to CNC machine code.</div>
+                </div>
+                <button class="btn btn-mfg done-btn {% if item.step_1_programming %}btn-done-active{% else %}btn-done-inactive{% endif %}" 
+                        data-item-id="{{ item.id }}" data-step="1">Done</button>
+                <button class="btn btn-mfg btn-issue">Report Issue</button>
+            </div>
+
+            <div class="process-step">
+                <div class="process-box {% if item.step_2_cutting %}done{% endif %}">
+                    <div class="step-label {% if item.step_2_cutting %}text-white{% endif %}">Cutting<br>(2D)</div>
+                    <div class="step-tooltip">Laser or plasma cutting of the raw 2D steel sheet.</div>
+                </div>
+                <button class="btn btn-mfg done-btn {% if item.step_2_cutting %}btn-done-active{% else %}btn-done-inactive{% endif %}" 
+                        data-item-id="{{ item.id }}" data-step="2">Done</button>
+                <button class="btn btn-mfg btn-issue">Report Issue</button>
+            </div>
+
+            <div class="process-step">
+                <div class="process-box {% if item.step_3_forming %}done{% endif %}">
+                    <div class="step-label {% if item.step_3_forming %}text-white{% endif %}">Forming & Bending<br>(3D)</div>
+                    <div class="step-tooltip">Press brake operations to fold and bend flat profiles.</div>
+                </div>
+                <button class="btn btn-mfg done-btn {% if item.step_3_forming %}btn-done-active{% else %}btn-done-inactive{% endif %}" 
+                        data-item-id="{{ item.id }}" data-step="3">Done</button>
+                <button class="btn btn-mfg btn-issue">Report Issue</button>
+            </div>
+
+            <div class="process-step">
+                <div class="process-box {% if item.step_4_joining %}done{% endif %}">
+                    <div class="step-label {% if item.step_4_joining %}text-white{% endif %}">Joining &<br>Assembling</div>
+                    <div class="step-tooltip">TIG/MIG welding, riveting, or bolting multiple formed parts together.</div>
+                </div>
+                <button class="btn btn-mfg done-btn {% if item.step_4_joining %}btn-done-active{% else %}btn-done-inactive{% endif %}" 
+                        data-item-id="{{ item.id }}" data-step="4">Done</button>
+                <button class="btn btn-mfg btn-issue">Report Issue</button>
+            </div>
+
+            <div class="process-step">
+                <div class="process-box {% if item.step_5_delivery %}done{% endif %}">
+                    <div class="step-label {% if item.step_5_delivery %}text-white{% endif %}">Delivery /<br>3rd Party</div>
+                    <div class="step-tooltip">Sent out for powder coating, galvanizing, or prepared for final shipping.</div>
+                </div>
+                <button class="btn btn-mfg done-btn {% if item.step_5_delivery %}btn-done-active{% else %}btn-done-inactive{% endif %}" 
+                        data-item-id="{{ item.id }}" data-step="5">Done</button>
+                <button class="btn btn-mfg btn-issue">Report Issue</button>
+            </div>
+
+        </div>
+    </div>
+{% endfor %}
+    {% endif %}
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const doneButtons = document.querySelectorAll('.done-btn');
+        
+        // Grab the Django security token from the page
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        doneButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const stepContainer = this.closest('.process-step');
+                const processBox = stepContainer.querySelector('.process-box');
+                const label = processBox.querySelector('.step-label');
+                
+                // Get the specific data for the database
+                const itemId = this.getAttribute('data-item-id');
+                const stepNumber = parseInt(this.getAttribute('data-step'));
+                
+                // Determine the new status (if it was inactive, it is now becoming "Done")
+                const isNowDone = this.classList.contains('btn-done-inactive');
+
+                // 1. Instantly update the visuals so it feels fast for the user
+                processBox.classList.toggle('done');
+                label.classList.toggle('text-white');
+
+                if (isNowDone) {
+                    this.classList.remove('btn-done-inactive');
+                    this.classList.add('btn-done-active');
+                } else {
+                    this.classList.remove('btn-done-active');
+                    this.classList.add('btn-done-inactive');
+                }
+
+                // 2. Send the update to the database quietly in the background
+                fetch("{% url 'update_item_status' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        'item_id': itemId,
+                        'step': stepNumber,
+                        'is_done': isNowDone
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert('Error saving to database. Please refresh the page.');
+                        console.error(data.error);
+                    }
+                });
+            });
+        });
+    });
+</script>
+</body>
+</html>

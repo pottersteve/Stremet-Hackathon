@@ -1,11 +1,16 @@
-from django.shortcuts import render, get_object_or_404
-from home.models import Order  # <-- Importing from home!
+from django.shortcuts import render
+from django.contrib import messages
+from home.models import Order  # <--- Crucial: importing the database from home
 
 def customer_panel(request):
     """View for Customers to track orders via Order ID."""
     if request.method == 'POST':
         order_id = request.POST.get('order_id')
-        order = get_object_or_404(Order, order_id=order_id)
-        return render(request, 'customer/customer_tracking.html', {'order': order})
-    
-    return render(request, 'customer/customer_login.html')
+        try:
+            order = Order.objects.get(order_id=order_id)
+            # Notice it now looks inside the 'customer' templates folder!
+            return render(request, 'customer/customer_panel.html', {'order': order})
+        except Order.DoesNotExist:
+            messages.error(request, f"Order ID '{order_id}' could not be found.")
+            
+    return render(request, 'customer/customer_panel.html')

@@ -42,7 +42,33 @@ class Order(models.Model):
     target_delivery = models.DateField()
 
     def __str__(self):
-        return f"{self.order_id} - {self.client.company_name}"
+        # Dynamic status display in the admin panel!
+        return f"{self.order_id} - {self.client.company_name} ({self.get_status_display()})"
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    item_name = models.CharField(max_length=255, help_text="e.g., 304 Stainless Steel Bracket Assembly")
+    quantity = models.PositiveIntegerField(default=1)
+
+    # The 5 Manufacturing Steps
+    step_1_programming = models.BooleanField(default=False)
+    step_2_cutting = models.BooleanField(default=False)
+    step_3_forming = models.BooleanField(default=False)
+    step_4_joining = models.BooleanField(default=False)
+    step_5_delivery = models.BooleanField(default=False)
+
+    @property
+    def current_status(self):
+        """Dynamically calculates the current flowchart stage."""
+        if self.step_5_delivery: return "Delivery / 3rd Party"
+        if self.step_4_joining: return "Joining & Assembling"
+        if self.step_3_forming: return "Forming & Bending"
+        if self.step_2_cutting: return "Cutting (2D)"
+        if self.step_1_programming: return "Programming / Designing"
+        return "Pending"
+
+    def __str__(self):
+        return f"{self.item_name} (Order: {self.order.order_id}) - Status: {self.current_status}"
 
 class OrderImage(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='reference_images')

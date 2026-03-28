@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+
 class UserProfile(models.Model):
     ROLE_CHOICES = (
         ('admin', 'Administrator'),
@@ -15,13 +16,15 @@ class UserProfile(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.get_role_display()}"
 
+
 class Client(models.Model):
-    name = models.CharField(max_length=200, blank=True, null=True) 
+    name = models.CharField(max_length=200, blank=True, null=True)
     email = models.EmailField(unique=True)
     company_name = models.CharField(max_length=200)
 
     def __str__(self):
         return self.company_name
+
 
 class Order(models.Model):
     STAGE_CHOICES = [
@@ -37,13 +40,13 @@ class Order(models.Model):
 
     order_id = models.CharField(max_length=50, unique=True)
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='orders')
-    
+
     steel_grade = models.CharField(max_length=50)
     product_form = models.CharField(max_length=50, blank=True, null=True)
     dimensions = models.CharField(max_length=100)
     quantity_tons = models.DecimalField(max_digits=10, decimal_places=2)
     surface_finish = models.CharField(max_length=50, blank=True, null=True)
-    
+
     heat_treatment = models.BooleanField(default=False)
     ultrasonic_test = models.BooleanField(default=False)
     mill_certificate = models.BooleanField(default=False)
@@ -57,6 +60,7 @@ class Order(models.Model):
 
     def __str__(self):
         return f"{self.order_id} - {self.client.company_name} ({self.get_status_display()})"
+
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
@@ -73,20 +77,27 @@ class OrderItem(models.Model):
     @property
     def current_status(self):
         """Dynamically calculates the current flowchart stage."""
-        if self.step_5_delivery: return "Delivery / 3rd Party"
-        if self.step_4_joining: return "Joining & Assembling"
-        if self.step_3_forming: return "Forming & Bending"
-        if self.step_2_cutting: return "Cutting (2D)"
-        if self.step_1_programming: return "Programming / Designing"
+        if self.step_5_delivery:
+            return "Delivery / 3rd Party"
+        if self.step_4_joining:
+            return "Joining & Assembling"
+        if self.step_3_forming:
+            return "Forming & Bending"
+        if self.step_2_cutting:
+            return "Cutting (2D)"
+        if self.step_1_programming:
+            return "Programming / Designing"
         return "Pending"
 
     def __str__(self):
         return f"{self.item_name} (Order: {self.order.order_id}) - Status: {self.current_status}"
 
+
 class OrderImage(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='reference_images')
     image = models.ImageField(upload_to='order_references/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
+
 
 class OrderModificationRequest(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='modifications')
@@ -94,8 +105,16 @@ class OrderModificationRequest(models.Model):
     is_approved = models.BooleanField(default=False, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+
 class ChatMessage(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='chat_logs')
     sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     message = models.TextField()
+
+    step_context = models.CharField(max_length=255, blank=True, null=True, help_text="The flowchart step clicked")
+    attachment = models.FileField(upload_to='chat_attachments/', blank=True, null=True)
+
     timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Order {self.order.order_id} - Msg from {self.sender.username}"

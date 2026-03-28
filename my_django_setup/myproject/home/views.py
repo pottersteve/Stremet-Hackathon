@@ -5,7 +5,7 @@ from django.contrib.auth import authenticate, login as auth_login, logout
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 
-from .models import Order, Client, OrderImage, OrderItem
+from .models import Order, Client, OrderImage, OrderItem, ChatMessage
 from .auth_utils import ensure_user_profile, get_profile_role
 from designer.models import ManufacturingPlan
 
@@ -226,6 +226,9 @@ def staff_dashboard(request):
         is_admin = True
         is_mfg = True
 
+    if is_admin or request.user.is_superuser:
+        return render(request, 'home/dashboard.html')
+
     context = {
         'is_admin': is_admin,
         'is_mfg': is_mfg,
@@ -288,3 +291,30 @@ def update_item_status(request):
             return JsonResponse({'success': False, 'error': str(e)})
             
     return JsonResponse({'success': False, 'error': 'Invalid request'})
+
+
+@login_required(login_url='login')
+def support_hub(request):
+    """Centralized page for viewing all support messages, contexts, and files."""
+    
+    # 1. Determine if the user is staff or a customer
+    is_staff = False
+    if hasattr(request.user, 'profile') and request.user.profile.role in ['admin', 'manufacturer']:
+        is_staff = True
+    elif request.user.is_superuser:
+        is_staff = True
+
+    # 2. Fetch the correct messages
+    if is_staff:
+        # Staff get to see a feed of EVERY message, newest first
+        messages_feed = ChatMessage.objects.all().order_by('-timestamp')
+    else:
+        # Customers only see messages they sent (or replies to them)
+        messages_feed = ChatMessage.objects.filter(sender=request.user).order_by('-timestamp')
+
+    context = {
+        'messages_feed': messages_feed,
+        'is_staff': is_staff
+    }
+    
+    return render(request, 'home/support_hub.html', context)

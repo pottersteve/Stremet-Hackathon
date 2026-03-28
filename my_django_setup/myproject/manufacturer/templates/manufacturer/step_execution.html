@@ -84,7 +84,7 @@
                         <tbody>
                             {% for m in step.materials.all %}
                             <tr>
-                                <td>{{ m.material_name }}{% if m.specification %}<br><small class="text-muted">{{ m.specification }}</small>{% endif %}</td>
+                                <td>{{ m.item_reservation.name }}{% if m.specification %}<br><small class="text-muted">{{ m.specification }}</small>{% endif %}</td>
                                 <td>{{ m.quantity|default:"—" }} {{ m.unit }}</td>
                                 <td><small>{{ m.storage_location|default:"—" }}</small></td>
                             </tr>

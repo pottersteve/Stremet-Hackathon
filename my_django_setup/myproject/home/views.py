@@ -26,6 +26,8 @@ def _get_role_redirect(user):
         return "designer_dashboard"
     if role == "manufacturer":
         return "manufacturer_dashboard"
+    if role == "warehouse":
+        return "warehouse_dashboard"
     if role == "customer":
         return "customer_request_quote"
     return "staff_dashboard"
@@ -96,6 +98,8 @@ def customer_request_quote(request):
         role = get_profile_role(request.user)
         if role == "manufacturer":
             return redirect("manufacturer_dashboard")
+        if role == "warehouse":
+            return redirect("warehouse_dashboard")
         if role == "designer":
             return redirect("designer_dashboard")
         messages.error(request, "You do not have access to this page.")
@@ -135,6 +139,9 @@ def staff_dashboard(request):
 
     if role == "manufacturer" and not request.user.is_superuser:
         return redirect("manufacturer_dashboard")
+
+    if role == "warehouse" and not request.user.is_superuser:
+        return redirect("warehouse_dashboard")
 
     is_admin = False
     is_mfg = False

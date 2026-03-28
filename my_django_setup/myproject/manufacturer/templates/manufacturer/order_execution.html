@@ -51,11 +51,14 @@
                 <div>
                     <strong>{{ s.sequence_order }}.</strong> {{ s.name }}
                     <span class="badge bg-secondary ms-1">{{ s.get_status_display }}</span>
+                    {% if s.step_kind == 'warehouse_pickup' %}
+                        <span class="badge ms-1" style="background-color:#6f42c1;">Warehouse pickup</span>
+                    {% endif %}
                     {% if primary_step and s.pk == primary_step.pk %}
-                        <span class="badge bg-success ms-1">Next</span>
+                        <span class="badge bg-success ms-1">Next (mfg)</span>
                     {% endif %}
                 </div>
-                <a href="{% url 'manufacturer_step_execution' plan_id=plan.pk step_id=s.pk %}" class="btn btn-sm btn-outline-success">Work</a>
+                <a href="{% url 'manufacturer_step_execution' plan_id=plan.pk step_id=s.pk %}" class="btn btn-sm {% if s.step_kind == 'warehouse_pickup' %}btn-outline-secondary{% else %}btn-outline-success{% endif %}">{% if s.step_kind == 'warehouse_pickup' %}View{% else %}Work{% endif %}</a>
             </div>
             {% empty %}
             <div class="list-group-item text-muted">No steps defined for this plan.</div>

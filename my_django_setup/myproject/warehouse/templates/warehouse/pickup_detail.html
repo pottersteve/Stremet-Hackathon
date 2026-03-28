@@ -1,0 +1,76 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pickup | {{ step.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'warehouse/css/wh.css' %}">
+</head>
+<body>
+
+{% include 'home/includes/portal_nav_bar.html' %}
+
+<nav class="navbar navbar-dark wh-header">
+    <div class="container d-flex justify-content-between align-items-center">
+        <span class="navbar-brand mb-0 h4">
+            <a href="{% url 'warehouse_pickup_queue' %}" class="text-white text-decoration-none">Pickup queue</a>
+            &rsaquo; Pickup
+        </span>
+        <a href="{% url 'logout' %}" class="btn btn-outline-light btn-sm">Logout</a>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <h4>{{ step.name }}</h4>
+    <p class="text-muted">Order {{ order.order_id }} — For manufacturing step: <strong>{{ m_step.name }}</strong></p>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white"><strong>BOM (item reservations)</strong></div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead><tr><th>Reservation</th><th>Qty</th><th>Required</th><th>In stock</th></tr></thead>
+                <tbody>
+                    {% for r in requirements %}
+                    <tr>
+                        <td>{{ r.reservation.name }}{% if r.reservation.sku %} <small class="text-muted">({{ r.reservation.sku }})</small>{% endif %}</td>
+                        <td>{{ r.line.quantity|default:"1" }} {{ r.line.unit }}</td>
+                        <td>{{ r.required }}</td>
+                        <td>
+                            {% if r.available >= r.required %}
+                                <span class="text-success">{{ r.available }}</span>
+                            {% else %}
+                                <span class="text-danger">{{ r.available }} (short)</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-muted">No BOM lines on target step.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if step.status == 'completed' or step.status == 'skipped' %}
+    <div class="alert alert-success">This pickup is already finished.</div>
+    {% elif can_fulfill %}
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" name="confirm_pickup" value="1" class="btn btn-success btn-lg">Confirm pickup (consume stock)</button>
+    </form>
+    {% else %}
+    <div class="alert alert-warning">Insufficient stock. Store items first, then return here.</div>
+    {% endif %}
+
+    <a href="{% url 'warehouse_pickup_queue' %}" class="btn btn-outline-secondary mt-4">&larr; Pickup queue</a>
+</div>
+</body>
+</html>

@@ -141,7 +141,7 @@
         const csrfToken = csrfInput ? csrfInput.value : '';
 
         aiButtons.forEach(btn => {
-            btn.addEventListener('click', function() {
+            btn.addEventListener('click', async function() {
                 const msgId = this.getAttribute('data-msg-id');
                 let customerMsg = '';
                 const threadEl = document.getElementById('support-ai-msg-' + msgId);
@@ -160,42 +160,48 @@
                 const originalText = this.innerHTML;
                 this.innerHTML = '⏳ AI is thinking...';
                 this.disabled = true;
+                textBox.value = '';
 
-                fetch("{% url 'generate_ai_suggestion' %}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({
-                        customer_message: customerMsg,
-                        context: contextStep || 'General Inquiry',
-                        order_id: orderId
-                    })
-                })
-                .then(function(response) {
-                    return response.json().then(function(data) {
-                        if (!response.ok) {
-                            throw new Error(data.error || ('HTTP ' + response.status));
-                        }
-                        return data;
+                try {
+                    const response = await fetch("{% url 'generate_ai_suggestion' %}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({
+                            customer_message: customerMsg,
+                            context: contextStep || 'General Inquiry',
+                            order_id: orderId
+                        })
                     });
-                })
-                .then(function(data) {
-                    if (data.success) {
-                        textBox.value = data.suggestion;
-                    } else {
-                        alert('AI Error: ' + (data.error || 'Unknown error'));
+                    if (!response.ok) {
+                        const errText = await response.text();
+                        alert(errText.trim() || ('Request failed (HTTP ' + response.status + ')'));
+                        return;
                     }
-                })
-                .catch(function(err) {
+                    if (!response.body || !response.body.getReader) {
+                        alert('Streaming is not supported in this browser.');
+                        return;
+                    }
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let accumulated = '';
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        accumulated += decoder.decode(value, { stream: true });
+                        textBox.value = accumulated;
+                    }
+                    accumulated += decoder.decode();
+                    textBox.value = accumulated;
+                } catch (err) {
                     alert(err.message || 'Could not reach the AI service. Try again.');
-                })
-                .finally(() => {
+                } finally {
                     this.innerHTML = originalText;
                     this.disabled = false;
-                });
+                }
             });
         });
     });

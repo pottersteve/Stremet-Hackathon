@@ -5,7 +5,12 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, logout
 from django.contrib.auth import login as auth_login
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.http import (
+    HttpResponse,
+    HttpResponseNotAllowed,
+    JsonResponse,
+    StreamingHttpResponse,
+)
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .auth_utils import ensure_user_profile, get_profile_role
@@ -18,7 +23,6 @@ from .services import (
     parse_flowchart_status_post,
 )
 
-from django.http import JsonResponse
 from gpt4all import GPT4All
 from .models import Order, ChatMessage
 
@@ -66,6 +70,17 @@ except Exception as e:
 _ai_generate_lock = threading.Lock()
 
 
+def _build_support_ai_user_prompt(order_id, context_step, customer_msg):
+    return (
+        f"Order reference: {order_id}\n"
+        f"Stage / topic context from the portal: {context_step}\n\n"
+        f"Customer message:\n{customer_msg}\n\n"
+        "Draft the full suggested reply from Stremet support, following your system instructions. "
+        "Keep it as concise as the situation allows while still being helpful; use more detail only when the "
+        "customer clearly needs it."
+    )
+
+
 def _user_is_support_staff(user):
     """
     Who may use /support staff tools (AI draft, see all threads):
@@ -82,58 +97,64 @@ def _user_is_support_staff(user):
 
 @login_required(login_url="login")
 def generate_ai_suggestion(request):
-    """Generate an AI draft for a support reply (not auto-sent). Any logged-in user may use this."""
+    """Stream an AI draft for a support reply as plain text (not auto-sent). Any logged-in user may use this."""
     ensure_user_profile(request.user)
 
-    if request.method == "POST":
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
+        return HttpResponse(
+            "Invalid JSON body.",
+            status=400,
+            content_type="text/plain; charset=utf-8",
+        )
+
+    customer_msg = (data.get("customer_message") or "").strip()
+    context_step = data.get("context") or "General Inquiry"
+    order_id = data.get("order_id")
+
+    if not ai_model:
+        return HttpResponse(
+            "AI model is offline or loading.",
+            status=503,
+            content_type="text/plain; charset=utf-8",
+        )
+
+    user_prompt = _build_support_ai_user_prompt(order_id, context_step, customer_msg)
+
+    def token_stream():
         try:
-            data = json.loads(request.body)
-            customer_msg = (data.get("customer_message") or "").strip()
-            context_step = data.get("context") or "General Inquiry"
-            order_id = data.get("order_id")
-
-            if not ai_model:
-                return JsonResponse({'success': False, 'error': 'AI model is offline or loading.'})
-
-            # Orca / catalog models expect chat_session() so the model's promptTemplate
-            # (e.g. "### User:\n...\n### Response:\n") is applied. Plain generate() uses
-            # a raw "%1" template and often returns empty text for these GGUFs.
-            user_prompt = (
-                f"Order reference: {order_id}\n"
-                f"Stage / topic context from the portal: {context_step}\n\n"
-                f"Customer message:\n{customer_msg}\n\n"
-                "Draft the full suggested reply from Stremet support, following your system instructions. "
-                "Keep it as concise as the situation allows while still being helpful; use more detail only when the "
-                "customer clearly needs it."
-            )
-
             with _ai_generate_lock:
                 with ai_model.chat_session(system_prompt=STREMET_SUPPORT_SYSTEM_PROMPT):
-                    suggestion = ai_model.generate(
+                    stream = ai_model.generate(
                         user_prompt,
-                        # Leave headroom in the 2048-token window for system + user prompt + template overhead.
                         max_tokens=512,
                         temp=0.6,
                         top_k=40,
                         top_p=0.85,
                         repeat_penalty=1.15,
+                        streaming=True,
                     )
-
-            suggestion = (suggestion or "").strip()
-            if not suggestion:
-                return JsonResponse(
-                    {
-                        "success": False,
-                        "error": "The model returned no text. Try again or shorten the customer message.",
-                    }
-                )
-
-            return JsonResponse({"success": True, "suggestion": suggestion})
-            
+                    for token in stream:
+                        if isinstance(token, str):
+                            yield token.encode("utf-8")
+                        else:
+                            yield bytes(token)
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
-            
-    return JsonResponse({'success': False, 'error': 'Invalid request'})
+            yield ("\n\n[Generation stopped: " + str(e) + "]").encode(
+                "utf-8", errors="replace"
+            )
+
+    response = StreamingHttpResponse(
+        token_stream(),
+        content_type="text/plain; charset=utf-8",
+    )
+    response["Cache-Control"] = "no-cache"
+    response["X-Accel-Buffering"] = "no"
+    return response
 
 
 def _get_role_redirect(user):

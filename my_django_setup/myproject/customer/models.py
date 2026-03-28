@@ -1,3 +1,4 @@
+# customer/models.py
 from django.db import models
 
-# Create your models here.
+# Leave this completely empty! We are using home.models.

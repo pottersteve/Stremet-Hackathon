@@ -7,7 +7,36 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 
 from .models import Order, Client, OrderImage, OrderItem
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth import authenticate, login as auth_login
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth import authenticate, login as auth_login
 
+def staff_login(request):
+    """Handles authentication for all internal staff."""
+    # If they are already logged in, send them straight to the dashboard
+    if request.user.is_authenticated:
+        return redirect('staff_dashboard')
+
+    if request.method == 'POST':
+        username = request.POST.get('username') 
+        password = request.POST.get('password')
+        
+        user = authenticate(request, username=username, password=password)
+        
+        if user is not None:
+            auth_login(request, user)
+            messages.success(request, f"Welcome back, {user.username}!")
+            return redirect('staff_dashboard')
+        else:
+            messages.error(request, "Invalid username or password.")
+            
+    # Make sure this matches the actual name of your HTML file!
+    return render(request, 'home/staff_login.html')
+def staff_logout(request):
+    pass
 
 def dashboard(request):
     """Renders the main landing page."""

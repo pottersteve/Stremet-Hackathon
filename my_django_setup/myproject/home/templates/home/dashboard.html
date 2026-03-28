@@ -1,0 +1,165 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stremet | Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; }
+        .panel-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            height: 100%;
+            cursor: pointer;
+            border: none;
+            border-radius: 12px;
+        }
+        .panel-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+        }
+        
+        /* Role-specific color themes */
+        .admin-bg { background-color: #2c3e50; color: white; }
+        .mfg-bg { background-color: #a85c57; color: white; }
+        .customer-bg { background-color: #2980b9; color: white; }
+        .shared-bg { background-color: #7f8c8d; color: white; }
+        
+        .header-banner {
+            background-color: #fff;
+            border-bottom: 2px solid #e0e0e0;
+            padding: 20px 0;
+            margin-bottom: 40px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header-banner shadow-sm">
+    <div class="container d-flex justify-content-between align-items-center">
+        <h2 class="mb-0 fw-bold text-dark">Stremet Central</h2>
+        <div>
+            {% if request.user.is_authenticated %}
+                <span class="me-3 fw-bold text-muted">Welcome, {{ request.user.username }}!</span>
+                <a href="{% url 'logout' %}" class="btn btn-outline-danger btn-sm">Log Out</a>
+            {% else %}
+                <a href="{% url 'login' %}" class="btn btn-primary">Log In</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="container mb-5">
+    
+    {% if not request.user.is_authenticated %}
+        <div class="text-center mt-5">
+            <h1 class="display-5 text-muted">Please log in to access your portal.</h1>
+        </div>
+    {% else %}
+        <div class="row g-4">
+
+            {% if request.user.profile.role == 'admin' or request.user.is_superuser %}
+                
+                <div class="col-md-4">
+                    <a href="{% url 'admin_panel' %}" class="text-decoration-none">
+                        <div class="card panel-card admin-bg shadow-sm">
+                            <div class="card-body text-center p-4">
+                                <h1 class="display-4 mb-3">📝</h1>
+                                <h4 class="card-title fw-bold">Create New Order</h4>
+                                <p class="card-text small">Draft specifications, assign items, and generate new order IDs.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="col-md-4">
+                    <a href="/admin/home/client/" class="text-decoration-none">
+                        <div class="card panel-card admin-bg shadow-sm">
+                            <div class="card-body text-center p-4">
+                                <h1 class="display-4 mb-3">🏢</h1>
+                                <h4 class="card-title fw-bold">Client Directory</h4>
+                                <p class="card-text small">View, edit, and onboard new manufacturing clients.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            {% endif %}
+
+
+            {% if request.user.profile.role == 'manufacturer' or request.user.is_superuser %}
+                
+                <div class="col-md-4">
+                    <a href="{% url 'staff_dashboard' %}" class="text-decoration-none">
+                        <div class="card panel-card mfg-bg shadow-sm">
+                            <div class="card-body text-center p-4">
+                                <h1 class="display-4 mb-3">⚙️</h1>
+                                <h4 class="card-title fw-bold">Production Floor</h4>
+                                <p class="card-text small">Update flowchart stages and mark item steps as complete.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="col-md-4">
+                    <a href="#" class="text-decoration-none">
+                        <div class="card panel-card mfg-bg shadow-sm">
+                            <div class="card-body text-center p-4">
+                                <h1 class="display-4 mb-3">🔍</h1>
+                                <h4 class="card-title fw-bold">Quality Control Logs</h4>
+                                <p class="card-text small">Review ultrasonic tests and mill certificates.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            {% endif %}
+
+
+            {% if request.user.profile.role == 'customer' %}
+                
+                <div class="col-md-4">
+                    <a href="{% url 'customer_panel' %}" class="text-decoration-none">
+                        <div class="card panel-card customer-bg shadow-sm">
+                            <div class="card-body text-center p-4">
+                                <h1 class="display-4 mb-3">📦</h1>
+                                <h4 class="card-title fw-bold">Track Active Orders</h4>
+                                <p class="card-text small">View real-time manufacturing progress of your steel components.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="col-md-4">
+                    <a href="#" class="text-decoration-none">
+                        <div class="card panel-card customer-bg shadow-sm">
+                            <div class="card-body text-center p-4">
+                                <h1 class="display-4 mb-3">📐</h1>
+                                <h4 class="card-title fw-bold">Request Modification</h4>
+                                <p class="card-text small">Submit blueprint changes or tolerance adjustments.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            {% endif %}
+
+
+            <div class="col-md-4">
+                <a href="#" class="text-decoration-none">
+                    <div class="card panel-card shared-bg shadow-sm">
+                        <div class="card-body text-center p-4">
+                            <h1 class="display-4 mb-3">💬</h1>
+                            <h4 class="card-title fw-bold">Support & Messages</h4>
+                            <p class="card-text small">Access your communication history and active support tickets.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+        </div>
+    {% endif %}
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

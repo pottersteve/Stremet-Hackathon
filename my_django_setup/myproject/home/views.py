@@ -17,6 +17,47 @@ from .services import (
     parse_flowchart_status_post,
 )
 
+from django.http import JsonResponse
+from gpt4all import GPT4All
+from .models import Order, ChatMessage
+
+
+try:
+    print("Loading AI Model...")
+    ai_model = GPT4All("orca-mini-3b-gguf2-q4_0.gguf")
+    print("AI Model loaded successfully!")
+except Exception as e:
+    print(f"Failed to load AI: {e}")
+    ai_model = None
+
+def generate_ai_suggestion(request):
+    """Hidden endpoint for staff to generate an AI draft."""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            customer_msg = data.get('customer_message')
+            context_step = data.get('context', 'General Inquiry')
+            order_id = data.get('order_id')
+
+            if not ai_model:
+                return JsonResponse({'success': False, 'error': 'AI model is offline or loading.'})
+
+            # Give the AI specific instructions on how to behave
+            prompt = f"""You are a helpful support agent for Stremet, a steel manufacturing factory. 
+            A customer asked a question about order {order_id}.
+            Context: They are asking about the '{context_step}' stage.
+            Customer says: "{customer_msg}"
+            Write a polite, professional 1-paragraph reply addressing their question. Do not use placeholders."""
+            
+            # Generate the text
+            suggestion = ai_model.generate(prompt, max_tokens=150)
+            
+            return JsonResponse({'success': True, 'suggestion': suggestion.strip()})
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+            
+    return JsonResponse({'success': False, 'error': 'Invalid request'})
 
 def _get_role_redirect(user):
     """Return the URL name to redirect to based on user role."""
@@ -195,47 +236,54 @@ def update_item_status(request):
     return JsonResponse({"success": True})
 
 
-@login_required(login_url="login")
+@login_required(login_url='login')
 def support_hub(request):
     """Centralized page for viewing all support messages, contexts, and files."""
+    
+    # 1. Determine if the user is staff or a customer
     is_staff = False
-    if (
-        request.user.is_superuser
-        or hasattr(request.user, "profile")
-        and request.user.profile.role
-        in (
-            "admin",
-            "manufacturer",
-        )
-    ):
+    if hasattr(request.user, 'profile') and request.user.profile.role in ['admin', 'manufacturer']:
+        is_staff = True
+    elif request.user.is_superuser:
         is_staff = True
 
-    if request.method == "POST":
-        order_id = request.POST.get("order_id")
-        message_text = request.POST.get("chat_message")
-        attachment = request.FILES.get("chat_attachment")
+    # --- NEW: HANDLE ADMIN REPLIES DIRECTLY ON THIS PAGE ---
+    if request.method == 'POST':
+        order_id = request.POST.get('order_id')
+        chat_message = request.POST.get('chat_message')
+        step_context = request.POST.get('step_context')
+        chat_attachment = request.FILES.get('chat_attachment')
 
-        order = get_object_or_404(Order, order_id=order_id)
+        try:
+            order = Order.objects.get(order_id=order_id)
+            # Save the admin's reply to the database
+            ChatMessage.objects.create(
+                order=order,
+                sender=request.user,
+                message=chat_message,
+                step_context=step_context,
+                attachment=chat_attachment
+            )
+            messages.success(request, f"Reply successfully sent to Order {order_id}!")
+        except Order.DoesNotExist:
+            messages.error(request, "Error: Could not find that order.")
+            
+        # Refresh the page to show the new message
+        return redirect('support_hub')
 
-        ChatMessage.objects.create(
-            order=order,
-            sender=request.user,
-            message=message_text,
-            attachment=attachment,
-        )
-        messages.success(request, f"Reply sent for Order {order_id}.")
-        return redirect("support_hub")
-
+    # 2. Fetch the correct messages
     if is_staff:
-        messages_feed = ChatMessage.objects.all().order_by("-timestamp")
+        messages_feed = ChatMessage.objects.all().order_by('-timestamp')
     else:
-        messages_feed = ChatMessage.objects.filter(
-            order__client__email=request.user.email
-        ).order_by("-timestamp")
+        messages_feed = ChatMessage.objects.filter(sender=request.user).order_by('-timestamp')
 
-    context = {"messages_feed": messages_feed, "is_staff": is_staff}
+    context = {
+        'messages_feed': messages_feed,
+        'is_staff': is_staff
+    }
+    
+    return render(request, 'home/support_hub.html', context)
 
-    return render(request, "home/support_hub.html", context)
 
 
 def send_chat_message(request):
@@ -247,3 +295,5 @@ def send_chat_message(request):
     if err:
         return JsonResponse({"success": False, "error": err})
     return JsonResponse(payload)
+
+

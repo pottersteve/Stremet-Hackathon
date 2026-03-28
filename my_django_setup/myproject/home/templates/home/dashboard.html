@@ -62,7 +62,7 @@
             {% if request.user.profile.role == 'admin' or request.user.is_superuser %}
                 
                 <div class="col-md-4">
-                    <a href="" class="text-decoration-none">
+                    <a href="{% url 'customer_request_quote' %}" class="text-decoration-none">
                         <div class="card panel-card admin-bg shadow-sm">
                             <div class="card-body text-center p-4">
                                 <h1 class="display-4 mb-3">📝</h1>
@@ -90,7 +90,7 @@
             {% if request.user.profile.role == 'manufacturer' or request.user.is_superuser %}
                 
                 <div class="col-md-4">
-                    <a href="{% url 'staff_dashboard' %}" class="text-decoration-none">
+                    <a href="{% url 'designer_dashboard' %}" class="text-decoration-none">
                         <div class="card panel-card mfg-bg shadow-sm">
                             <div class="card-body text-center p-4">
                                 <h1 class="display-4 mb-3">⚙️</h1>

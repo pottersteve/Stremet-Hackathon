@@ -1,0 +1,36 @@
+body {
+    background-color: #f4f6f9;
+}
+
+.designer-header {
+    background-color: #1a5276;
+    padding: 12px 0;
+}
+
+.order-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    border-left: 4px solid #1a5276;
+}
+
+.order-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+
+#graph-canvas {
+    background-color: #fafbfc;
+    border: 1px solid #dee2e6;
+}
+
+.quality-row td,
+.material-row td {
+    vertical-align: middle;
+}
+
+.quality-row .form-control,
+.quality-row .form-select,
+.material-row .form-control,
+.material-row .form-select {
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+}

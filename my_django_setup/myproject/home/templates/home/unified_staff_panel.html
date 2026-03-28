@@ -15,6 +15,8 @@
 </head>
 <body>
 
+{% include 'home/includes/portal_nav_bar.html' %}
+
 <div class="staff-header mb-4">
     <div class="container d-flex justify-content-between align-items-center">
         <h2 class="mb-0">Stremet Staff Dashboard</h2>
@@ -43,116 +45,8 @@
             <p class="text-muted small">Enter specifications to generate a new manufacturing ticket.</p>
         </div>
         <div class="card-body p-4">
-            <form action="{% url 'staff_dashboard' %}" method="POST" enctype="multipart/form-data">
-                {% csrf_token %}
-                <div class="row">
-                    <div class="col-lg-7">
-                        <div class="card section-card">
-                            <div class="card-header bg-light fw-bold">1. Client & Order Details</div>
-                            <div class="card-body">
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label">Order ID</label>
-                                        <input type="text" class="form-control" name="order_id" placeholder="e.g., ORD-2026-8991" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Client Company</label>
-                                        <input type="text" class="form-control" name="company_name" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Contact Email</label>
-                                        <input type="email" class="form-control" name="client_email" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Target Delivery Date</label>
-                                        <input type="date" class="form-control" name="target_delivery" required>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card section-card">
-                            <div class="card-header bg-light fw-bold">2. Technical Specifications</div>
-                            <div class="card-body">
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label">Steel Grade</label>
-                                        <select class="form-select" name="steel_grade">
-                                            <option value="304_ss">304 Stainless Steel</option>
-                                            <option value="316_ss">316 Marine Grade Stainless</option>
-                                            <option value="a36_carbon">A36 Mild Carbon Steel</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Product Form</label>
-                                        <select class="form-select" name="product_form">
-                                            <option value="plate">Plate / Sheet</option>
-                                            <option value="coil">Rolled Coil</option>
-                                            <option value="bar">Structural Bar</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Thickness (mm)</label>
-                                        <input type="number" step="0.01" class="form-control" name="dim_thickness">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Width (mm)</label>
-                                        <input type="number" step="0.01" class="form-control" name="dim_width">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Length (mm)</label>
-                                        <input type="number" step="0.01" class="form-control" name="dim_length">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Total Qty (Metric Tons)</label>
-                                        <input type="number" step="0.1" class="form-control" name="quantity_tons" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Surface Finish</label>
-                                        <select class="form-select" name="surface_finish">
-                                            <option value="hot_rolled">Hot Rolled (HR)</option>
-                                            <option value="cold_rolled">Cold Rolled (CR)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <hr class="my-4">
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold d-block">Processing & Testing</label>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="checkbox" name="heat_treatment" value="yes">
-                                        <label class="form-check-label">Heat Treatment</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="checkbox" name="ultrasonic_test" value="yes">
-                                        <label class="form-check-label">Ultrasonic Testing</label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-5">
-                        <div class="card section-card">
-                            <div class="card-header bg-light fw-bold">3. Blueprints & Files</div>
-                            <div class="card-body">
-                                <div class="mb-3">
-                                    <label class="form-label">Upload CAD (.pdf, .dwg)</label>
-                                    <input class="form-control" type="file" name="blueprint_file" accept=".pdf,.dwg,.dxf">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card section-card">
-                            <div class="card-header bg-light fw-bold">4. Notes</div>
-                            <div class="card-body">
-                                <textarea class="form-control" name="admin_notes" rows="3"></textarea>
-                            </div>
-                        </div>
-                        <div class="d-grid gap-2">
-                            <button type="submit" name="create_order" class="btn btn-primary btn-lg">Generate Order</button>
-                        </div>
-                    </div>
-                </div>
-            </form>
+            {% url 'staff_dashboard' as order_form_action %}
+            {% include 'home/includes/order_quote_form.html' with form_action=order_form_action submit_name='create_order' notes_label='Admin notes' submit_button_label='Generate Order' %}
         </div>
     </div>
     {% endif %}

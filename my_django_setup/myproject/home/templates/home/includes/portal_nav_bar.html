@@ -1,0 +1,10 @@
+{% if show_admin_portal_nav %}
+<div class="bg-dark border-bottom border-secondary py-2">
+    <div class="container-fluid px-3 px-md-4 d-flex flex-wrap align-items-center gap-2">
+        <span class="text-white-50 small me-1 text-uppercase">Admin navigation</span>
+        {% for item in portal_nav_items %}
+        <a href="{{ item.url }}" class="btn btn-sm btn-outline-light">{{ item.label }}</a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

@@ -42,8 +42,8 @@ class StepDependencyFromInline(admin.TabularInline):
 
 @admin.register(ManufacturingStep)
 class ManufacturingStepAdmin(admin.ModelAdmin):
-    list_display = ("name", "plan", "status", "sequence_order")
-    list_filter = ("status",)
+    list_display = ("name", "plan", "step_kind", "status", "sequence_order")
+    list_filter = ("status", "step_kind")
     search_fields = ("name", "plan__name")
     inlines = [QualityChecklistItemInline, StepMaterialInline, StepDependencyFromInline]
 
@@ -56,8 +56,8 @@ class QualityChecklistItemAdmin(admin.ModelAdmin):
 
 @admin.register(StepMaterial)
 class StepMaterialAdmin(admin.ModelAdmin):
-    list_display = ("material_name", "step", "quantity", "unit", "storage_location")
-    search_fields = ("material_name",)
+    list_display = ("item_reservation", "material_name", "step", "quantity", "unit")
+    search_fields = ("material_name", "item_reservation__name", "item_reservation__sku")
 
 
 @admin.register(StepDependency)

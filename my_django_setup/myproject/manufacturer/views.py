@@ -88,6 +88,23 @@ def step_execution(request, plan_id, step_id):
     plan = step.plan
     order = plan.order
 
+    if step.step_kind == ManufacturingStep.STEP_KIND_WAREHOUSE_PICKUP:
+        m_step = step.picks_for
+        preds = list(
+            step.incoming_dependencies.select_related("from_step").all()
+        )
+        return render(
+            request,
+            "manufacturer/step_warehouse_readonly.html",
+            {
+                "order": order,
+                "plan": plan,
+                "step": step,
+                "m_step": m_step,
+                "predecessors": preds,
+            },
+        )
+
     if request.method == "POST":
         old_status = step.status
         progress_form = StepProgressForm(request.POST, instance=step)

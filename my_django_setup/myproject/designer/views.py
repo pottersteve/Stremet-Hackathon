@@ -10,16 +10,20 @@ from django.views.decorators.http import require_POST
 
 from designer.services.graph import save_graph_from_payload
 from designer.services.plans import backfill_plans_for_received_orders
+from designer.services.warehouse_sync import sync_warehouse_steps_from_bom
 from home.models import Order
 from home.permissions import designer_required
 
 from .forms import (
     DesignerQualityChecklistFormSet,
+    ItemReservationForm,
     ManufacturingPlanForm,
     ManufacturingStepCreateForm,
     ManufacturingStepForm,
     StepMaterialFormSet,
 )
+from warehouse.models import ItemReservation
+
 from .models import (
     ManufacturingPlan,
     ManufacturingStep,
@@ -81,6 +85,7 @@ def order_detail(request, order_id):
 @designer_required
 def plan_editor(request, plan_id):
     plan = get_object_or_404(ManufacturingPlan, pk=plan_id)
+    sync_warehouse_steps_from_bom(plan)
 
     if request.method == "POST":
         form = ManufacturingPlanForm(request.POST, instance=plan)
@@ -130,6 +135,7 @@ def plan_editor(request, plan_id):
                     },
                 )
 
+            sync_warehouse_steps_from_bom(plan)
             if graph_data is not None:
                 messages.success(request, "Plan and manufacturing graph saved.")
             else:
@@ -172,6 +178,7 @@ def add_step(request, plan_id):
             existing_count = plan.steps.count()
             step.position_x = 100 + (existing_count * 180)
             step.position_y = 200
+            step.step_kind = ManufacturingStep.STEP_KIND_MANUFACTURING
             step.save()
             messages.success(request, f"Step '{step.name}' added.")
         else:
@@ -190,6 +197,18 @@ def step_detail(request, plan_id, step_id):
     plan = get_object_or_404(ManufacturingPlan, pk=plan_id)
     step = get_object_or_404(ManufacturingStep, pk=step_id, plan=plan)
 
+    if step.step_kind == ManufacturingStep.STEP_KIND_WAREHOUSE_PICKUP:
+        m_step = step.picks_for
+        return render(
+            request,
+            "designer/warehouse_pickup_step.html",
+            {
+                "plan": plan,
+                "step": step,
+                "m_step": m_step,
+            },
+        )
+
     if request.method == "POST":
         form = ManufacturingStepForm(request.POST, request.FILES, instance=step)
         checklist_formset = DesignerQualityChecklistFormSet(
@@ -207,10 +226,10 @@ def step_detail(request, plan_id, step_id):
             form.save()
             checklist_formset.save()
             material_formset.save()
+            sync_warehouse_steps_from_bom(plan)
             messages.success(request, f"Step '{step.name}' updated.")
             return redirect("designer_step_detail", plan_id=plan.pk, step_id=step.pk)
-        else:
-            messages.error(request, "Please correct the errors below.")
+        messages.error(request, "Please correct the errors below.")
     else:
         form = ManufacturingStepForm(instance=step)
         checklist_formset = DesignerQualityChecklistFormSet(
@@ -232,6 +251,40 @@ def step_detail(request, plan_id, step_id):
 
 
 # ------------------------------------------------------------------
+# Item reservations (BOM / warehouse catalog)
+# ------------------------------------------------------------------
+
+
+@designer_required
+def item_reservation_list(request):
+    reservations = ItemReservation.objects.order_by("name", "sku")
+    return render(
+        request,
+        "designer/item_reservation_list.html",
+        {"reservations": reservations},
+    )
+
+
+@designer_required
+def item_reservation_create(request):
+    if request.method == "POST":
+        form = ItemReservationForm(request.POST)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            obj.created_by = request.user
+            obj.save()
+            messages.success(request, "Item reservation created.")
+            return redirect("designer_item_reservation_list")
+    else:
+        form = ItemReservationForm()
+    return render(
+        request,
+        "designer/item_reservation_form.html",
+        {"form": form},
+    )
+
+
+# ------------------------------------------------------------------
 # Delete a step
 # ------------------------------------------------------------------
 
@@ -243,6 +296,7 @@ def delete_step(request, plan_id, step_id):
     step = get_object_or_404(ManufacturingStep, pk=step_id, plan=plan)
     step_name = step.name
     step.delete()
+    sync_warehouse_steps_from_bom(plan)
     messages.success(request, f"Step '{step_name}' deleted.")
     return redirect("designer_plan_editor", plan_id=plan.pk)
 
@@ -274,6 +328,7 @@ def graph_data(request, plan_id):
                 "y": s.position_y,
                 "color": STATUS_COLORS.get(s.status, "#6c757d"),
                 "status": s.status,
+                "step_kind": s.step_kind,
             }
         )
 
@@ -309,5 +364,7 @@ def save_graph(request, plan_id):
     err = save_graph_from_payload(plan, data)
     if err:
         return JsonResponse({"success": False, "error": err}, status=400)
+
+    sync_warehouse_steps_from_bom(plan)
 
     return JsonResponse({"success": True})

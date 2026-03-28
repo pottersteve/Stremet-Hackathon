@@ -1,0 +1,60 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stremet | Warehouse</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'warehouse/css/wh.css' %}">
+</head>
+<body>
+
+{% include 'home/includes/portal_nav_bar.html' %}
+
+<nav class="navbar navbar-dark wh-header">
+    <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span class="navbar-brand mb-0 h4">Stremet — Warehouse</span>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <a href="{% url 'warehouse_inventory' %}" class="btn btn-sm btn-outline-light">Inventory</a>
+            <span class="text-light me-2">{{ request.user.username }}</span>
+            <a href="{% url 'logout' %}" class="btn btn-outline-light btn-sm">Logout</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-5" style="max-width:720px;">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <p class="text-muted mb-4">Choose what you are doing right now. Storing and picking use separate screens.</p>
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <a href="{% url 'warehouse_store' %}" class="text-decoration-none text-dark">
+                <div class="card shadow-sm border-0 wh-card h-100 p-4 text-center">
+                    <h4 class="mb-2">Store items</h4>
+                    <p class="text-muted small mb-0">Put received materials into slots; create reservations if needed.</p>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-6">
+            <a href="{% url 'warehouse_pickup_queue' %}" class="text-decoration-none text-dark">
+                <div class="card shadow-sm border-0 wh-card h-100 p-4 text-center">
+                    <h4 class="mb-2">Pickup queue</h4>
+                    <p class="text-muted small mb-0">Open manufacturing pickups and confirm when stock is issued.</p>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

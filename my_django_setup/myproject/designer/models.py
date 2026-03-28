@@ -33,8 +33,28 @@ class ManufacturingStep(models.Model):
         ("skipped", "Skipped"),
     ]
 
+    STEP_KIND_MANUFACTURING = "manufacturing"
+    STEP_KIND_WAREHOUSE_PICKUP = "warehouse_pickup"
+    STEP_KIND_CHOICES = [
+        (STEP_KIND_MANUFACTURING, "Manufacturing"),
+        (STEP_KIND_WAREHOUSE_PICKUP, "Warehouse pickup"),
+    ]
+
     plan = models.ForeignKey(
         ManufacturingPlan, on_delete=models.CASCADE, related_name="steps"
+    )
+    step_kind = models.CharField(
+        max_length=32,
+        choices=STEP_KIND_CHOICES,
+        default=STEP_KIND_MANUFACTURING,
+    )
+    picks_for = models.OneToOneField(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="warehouse_pickup_step",
+        help_text="Manufacturing step whose BOM drives this pickup (pickup steps only).",
     )
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
@@ -84,7 +104,17 @@ class StepMaterial(models.Model):
     step = models.ForeignKey(
         ManufacturingStep, on_delete=models.CASCADE, related_name="materials"
     )
-    material_name = models.CharField(max_length=200)
+    item_reservation = models.ForeignKey(
+        "warehouse.ItemReservation",
+        on_delete=models.PROTECT,
+        related_name="bom_lines",
+    )
+    material_name = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+        help_text="Deprecated display cache; use item_reservation.name.",
+    )
     specification = models.TextField(blank=True)
     quantity = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True
@@ -102,8 +132,14 @@ class StepMaterial(models.Model):
         help_text="Special requirements, e.g. 'Keep dry, max 25C'",
     )
 
+    def save(self, *args, **kwargs):
+        if self.item_reservation_id:
+            self.material_name = self.item_reservation.name
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.material_name} ({self.quantity or '?'} {self.unit})"
+        label = self.item_reservation.name if self.item_reservation_id else self.material_name
+        return f"{label} ({self.quantity or '?'} {self.unit})"
 
 
 class StepDependency(models.Model):

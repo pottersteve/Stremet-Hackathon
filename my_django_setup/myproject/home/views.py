@@ -13,6 +13,7 @@ from django.contrib.auth import authenticate, login as auth_login
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login
+from .models import ChatMessage 
 
 def staff_login(request):
     """Handles authentication for all internal staff."""

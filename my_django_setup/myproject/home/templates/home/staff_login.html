@@ -52,7 +52,7 @@
         {% endfor %}
     {% endif %}
 
-<form method="POST" action="{% url 'staff_login' %}">        {% csrf_token %}
+<form method="POST" action="{% url 'login' %}">        {% csrf_token %}
         
         <div class="mb-4">
             <label for="username" class="form-label fw-bold">Username</label>

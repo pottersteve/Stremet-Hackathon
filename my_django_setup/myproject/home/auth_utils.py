@@ -18,5 +18,5 @@ def ensure_user_profile(user):
     """
     UserProfile.objects.get_or_create(
         user=user,
-        defaults={'role': 'admin' if user.is_superuser else 'customer'},
+        defaults={"role": "admin" if user.is_superuser else "customer"},
     )

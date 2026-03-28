@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev, master]
+  pull_request:
+    branches: [main, dev, master]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Ruff check
+        run: python -m ruff check my_django_setup/myproject
+
+      - name: Ruff format (verify)
+        run: python -m ruff format --check my_django_setup/myproject
+
+      - name: Mypy
+        run: python -m mypy my_django_setup/myproject
+
+      - name: Django system check
+        working-directory: my_django_setup/myproject
+        run: python manage.py check
+
+      - name: Pytest
+        run: python -m pytest -q

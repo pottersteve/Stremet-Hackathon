@@ -1,0 +1,32 @@
+[project]
+name = "stremet-hackathon"
+version = "0.0.0"
+description = "Django steel order management (hackathon)"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
+
+[tool.ruff]
+target-version = "py313"
+src = ["my_django_setup/myproject"]
+extend-exclude = ["**/migrations/**"]
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "I", "UP", "B", "SIM", "PTH",
+]
+ignore = [
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/settings/*.py" = ["F403", "F405"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "myproject.settings"
+pythonpath = ["my_django_setup/myproject"]
+testpaths = ["my_django_setup/myproject"]
+python_files = ["tests.py", "test_*.py", "*_tests.py"]

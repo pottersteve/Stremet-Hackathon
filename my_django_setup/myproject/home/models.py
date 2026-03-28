@@ -1,17 +1,17 @@
-from django.db import models
 from django.contrib.auth.models import User
+from django.db import models
 
 
 class UserProfile(models.Model):
     ROLE_CHOICES = (
-        ('admin', 'Administrator'),
-        ('customer', 'Customer'),
-        ('manufacturer', 'Manufacturer'),
-        ('designer', 'Designer'),
+        ("admin", "Administrator"),
+        ("customer", "Customer"),
+        ("manufacturer", "Manufacturer"),
+        ("designer", "Designer"),
     )
     # Links this profile to the built-in Django User (which handles name, email, password)
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='customer')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="customer")
 
     def __str__(self):
         return f"{self.user.username} - {self.get_role_display()}"
@@ -28,18 +28,18 @@ class Client(models.Model):
 
 class Order(models.Model):
     STAGE_CHOICES = [
-        ('order_received', 'Order Received'),
-        ('raw_materials', 'Raw Materials Preparation'),
-        ('melting', 'Melting & Refining'),
-        ('casting', 'Continuous Casting'),
-        ('rolling', 'Hot/Cold Rolling'),
-        ('finishing', 'Finishing & Inspection'),
-        ('shipping', 'Ready for Shipping'),
-        ('delivered', 'Delivered')
+        ("order_received", "Order Received"),
+        ("raw_materials", "Raw Materials Preparation"),
+        ("melting", "Melting & Refining"),
+        ("casting", "Continuous Casting"),
+        ("rolling", "Hot/Cold Rolling"),
+        ("finishing", "Finishing & Inspection"),
+        ("shipping", "Ready for Shipping"),
+        ("delivered", "Delivered"),
     ]
 
     order_id = models.CharField(max_length=50, unique=True)
-    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='orders')
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="orders")
 
     steel_grade = models.CharField(max_length=50)
     product_form = models.CharField(max_length=50, blank=True, null=True)
@@ -51,10 +51,12 @@ class Order(models.Model):
     ultrasonic_test = models.BooleanField(default=False)
     mill_certificate = models.BooleanField(default=False)
 
-    blueprint_file = models.FileField(upload_to='blueprints/', blank=True, null=True)
+    blueprint_file = models.FileField(upload_to="blueprints/", blank=True, null=True)
     admin_notes = models.TextField(blank=True, null=True)
 
-    status = models.CharField(max_length=30, choices=STAGE_CHOICES, default='order_received')
+    status = models.CharField(
+        max_length=30, choices=STAGE_CHOICES, default="order_received"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     target_delivery = models.DateField()
 
@@ -63,8 +65,10 @@ class Order(models.Model):
 
 
 class OrderItem(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-    item_name = models.CharField(max_length=255, help_text="e.g., 304 Stainless Steel Bracket Assembly")
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
+    item_name = models.CharField(
+        max_length=255, help_text="e.g., 304 Stainless Steel Bracket Assembly"
+    )
     quantity = models.PositiveIntegerField(default=1)
 
     # The 5 Manufacturing Steps
@@ -94,25 +98,31 @@ class OrderItem(models.Model):
 
 
 class OrderImage(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='reference_images')
-    image = models.ImageField(upload_to='order_references/')
+    order = models.ForeignKey(
+        Order, on_delete=models.CASCADE, related_name="reference_images"
+    )
+    image = models.ImageField(upload_to="order_references/")
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
 
 class OrderModificationRequest(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='modifications')
+    order = models.ForeignKey(
+        Order, on_delete=models.CASCADE, related_name="modifications"
+    )
     request_text = models.TextField()
     is_approved = models.BooleanField(default=False, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
 
 class ChatMessage(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='chat_logs')
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="chat_logs")
     sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     message = models.TextField()
 
-    step_context = models.CharField(max_length=255, blank=True, null=True, help_text="The flowchart step clicked")
-    attachment = models.FileField(upload_to='chat_attachments/', blank=True, null=True)
+    step_context = models.CharField(
+        max_length=255, blank=True, null=True, help_text="The flowchart step clicked"
+    )
+    attachment = models.FileField(upload_to="chat_attachments/", blank=True, null=True)
 
     timestamp = models.DateTimeField(auto_now_add=True)
 

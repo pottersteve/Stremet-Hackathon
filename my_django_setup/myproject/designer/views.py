@@ -13,6 +13,7 @@ from designer.services.plans import backfill_plans_for_received_orders
 from designer.services.warehouse_sync import sync_warehouse_steps_from_bom
 from home.models import Order
 from home.permissions import designer_required
+from warehouse.models import ItemReservation
 
 from .forms import (
     DesignerQualityChecklistFormSet,
@@ -22,8 +23,6 @@ from .forms import (
     ManufacturingStepForm,
     StepMaterialFormSet,
 )
-from warehouse.models import ItemReservation
-
 from .models import (
     ManufacturingPlan,
     ManufacturingStep,

@@ -8,14 +8,14 @@ from designer.models import ManufacturingStep
 from home.permissions import warehouse_required
 
 from .forms import StoredItemReceiveForm, WarehouseItemReservationForm
-from .models import ItemReservation, StoredItem
+from .models import StoredItem
 from .services import (
     can_fulfill_pickup,
     consume_stock_for_pickup,
+    pickup_requirements,
     plan_work_summary_pickup,
     suggest_free_slot,
     warehouse_orders_queryset,
-    pickup_requirements,
 )
 
 

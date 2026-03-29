@@ -1,4 +1,6 @@
 import json
+from itertools import groupby
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, logout
@@ -11,6 +13,7 @@ from django.http import (
     StreamingHttpResponse,
 )
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from .auth_utils import ensure_user_profile, get_profile_role
 from .models import ChatMessage, Client, Order, OrderImage
@@ -533,22 +536,40 @@ def support_hub(request):
             messages.success(request, f"Reply successfully sent to Order {order_id}!")
         except Order.DoesNotExist:
             messages.error(request, "Error: Could not find that order.")
-            
-        # Refresh the page to show the new message
-        return redirect('support_hub')
+            return redirect("support_hub")
 
-    # 2. Fetch the correct messages
+        return redirect(
+            f"{reverse('support_hub')}?{urlencode({'order': order_id})}"
+        )
+
     if is_staff:
-        messages_feed = ChatMessage.objects.all().order_by('-timestamp')
+        chat_qs = ChatMessage.objects.all()
     else:
-        messages_feed = ChatMessage.objects.filter(sender=request.user).order_by('-timestamp')
+        chat_qs = ChatMessage.objects.filter(sender=request.user)
+
+    chat_qs = chat_qs.select_related(
+        "order", "order__client", "sender", "sender__profile"
+    ).order_by("order_id", "timestamp")
+
+    threads = []
+    for _order_pk, msg_iter in groupby(chat_qs, key=lambda m: m.order_id):
+        msg_list = list(msg_iter)
+        order = msg_list[0].order
+        threads.append(
+            {
+                "order": order,
+                "messages": msg_list,
+                "last_timestamp": msg_list[-1].timestamp,
+            }
+        )
+    threads.sort(key=lambda t: t["last_timestamp"], reverse=True)
 
     context = {
-        'messages_feed': messages_feed,
-        'is_staff': is_staff
+        "threads": threads,
+        "is_staff": is_staff,
     }
-    
-    return render(request, 'home/support_hub.html', context)
+
+    return render(request, "home/support_hub.html", context)
 
 
 

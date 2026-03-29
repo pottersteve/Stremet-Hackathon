@@ -25,6 +25,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -251,15 +252,24 @@ def run_tour(args: argparse.Namespace) -> None:
             # Support: AI-assisted reply
             do_logout(page, base, delay_ms)
             do_login(page, base, USER_ADMIN, pw, delay_ms)
-            page.goto(f"{base}/support/", wait_until="domcontentloaded")
+            page.goto(
+                f"{base}/support/?order={urllib.parse.quote(order_id, safe='')}",
+                wait_until="domcontentloaded",
+            )
             page.wait_for_load_state("networkidle")
             after_action(page, delay_ms)
             beat_pause("Support inbox", args)
 
-            msg_cards = page.locator(".message-card").filter(has_text=order_id)
-            if msg_cards.count() == 0:
+            # Ensure the order's thread panel is visible (hidden panels may not match has_text).
+            sb = page.locator(".thread-sidebar-item").filter(has_text=order_id)
+            if sb.count() > 0:
+                sb.first.click()
+                after_action(page, delay_ms)
+
+            card_loc = page.locator(f'[data-order-thread="{order_id}"]')
+            if card_loc.count() == 0:
                 raise RuntimeError(f"No thread found for order {order_id!r}.")
-            card_loc = msg_cards.first
+            card_loc = card_loc.first
             card_loc.get_by_role(
                 "button", name=re.compile(r"Suggest AI", re.I)
             ).click()

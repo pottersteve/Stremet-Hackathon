@@ -62,7 +62,7 @@
             {% if request.user.profile.role == 'admin' or request.user.is_superuser %}
                 
                 <div class="col-md-4">
-                    <a href="" class="text-decoration-none">
+                    <a href="{% url 'admin_panel' %}" class="text-decoration-none">
                         <div class="card panel-card admin-bg shadow-sm">
                             <div class="card-body text-center p-4">
                                 <h1 class="display-4 mb-3">📝</h1>
@@ -74,7 +74,7 @@
                 </div>
 
                 <div class="col-md-4">
-                    <a href="/admin/home/client/" class="text-decoration-none">
+                    <a href="{% url 'client_directory' %}" class="text-decoration-none">
                         <div class="card panel-card admin-bg shadow-sm">
                             <div class="card-body text-center p-4">
                                 <h1 class="display-4 mb-3">🏢</h1>
@@ -114,6 +114,7 @@
                 </div>
             {% endif %}
 
+            <!---
 
             {% if request.user.profile.role == 'customer'  or request.user.is_superuser%}
                 
@@ -141,6 +142,8 @@
                     </a>
                 </div>
             {% endif %}
+
+            --->
 
 
             <div class="col-md-4">

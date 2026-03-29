@@ -16,11 +16,21 @@
 <div class="admin-header mb-4">
     <div class="container d-flex justify-content-between align-items-center">
         <h2 class="mb-0">Administrator Portal - New Order Entry</h2>
-        <a href="{% url 'manufacturer_dashboard' %}" class="btn btn-outline-light">Back to Dashboard</a>
+        <a href="{% url 'staff_dashboard' %}" class="btn btn-outline-light">Back to Dashboard</a>
     </div>
 </div>
 
 <div class="container">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}success{% endif %} alert-dismissible fade show shadow-sm">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form action="{% url 'admin_panel' %}" method="POST" enctype="multipart/form-data">
     <form action="{% url 'admin_panel' %}" method="POST" enctype="multipart/form-data">
         {% csrf_token %}
         

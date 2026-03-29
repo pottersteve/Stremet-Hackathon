@@ -17,6 +17,97 @@ from .services import (
     parse_flowchart_status_post,
 )
 
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from .models import Client, Order, OrderImage # Importing from your models.py
+
+
+def client_directory(request):
+    """Custom interface for Admins to view all clients and their associated orders."""
+    
+    # SECURITY CHECK: Ensure only Admins or Superusers can access this page
+    is_admin = request.user.is_superuser or (hasattr(request.user, 'profile') and request.user.profile.role == 'admin')
+    if not is_admin:
+        messages.error(request, "Access Denied. You do not have administrator privileges.")
+        return redirect('home_dashboard')
+
+    # Fetch all clients, and pre-fetch their related orders to make the page load lightning fast
+    clients = Client.objects.prefetch_related('orders').all().order_by('company_name')
+
+    return render(request, 'home/client_directory.html', {'clients': clients})
+
+def admin_panel(request):
+    """View for the Administrator Portal to create new manufacturing orders."""
+    
+    # 1. SECURITY CHECK: Ensure only Admins or Superusers can access this page
+    is_admin = request.user.is_superuser or (hasattr(request.user, 'profile') and request.user.profile.role == 'admin')
+    if not is_admin:
+        messages.error(request, "Access Denied. You do not have administrator privileges.")
+        return redirect('home_dashboard')
+
+    if request.method == 'POST':
+        try:
+            # 2. Extract Client Data
+            company_name = request.POST.get('company_name')
+            client_email = request.POST.get('client_email')
+            
+            # Find the client by email, or dynamically create a new one if they don't exist
+            client, created = Client.objects.get_or_create(
+                email=client_email,
+                defaults={'company_name': company_name}
+            )
+
+            # 3. Extract & Format Technical Specifications
+            # The HTML has 3 fields (L, W, H), but the database has 1 string field for 'dimensions'
+            thickness = request.POST.get('dim_thickness') or '0'
+            width = request.POST.get('dim_width') or '0'
+            length = request.POST.get('dim_length') or '0'
+            dimensions_str = f"{thickness}mm x {width}mm x {length}mm"
+
+            quantity_tons = request.POST.get('quantity_tons')
+            if not quantity_tons:
+                quantity_tons = 0
+
+            # 4. Create the Main Order Object
+            new_order = Order.objects.create(
+                order_id=request.POST.get('order_id'),
+                client=client,
+                target_delivery=request.POST.get('target_delivery'),
+                steel_grade=request.POST.get('steel_grade'),
+                product_form=request.POST.get('product_form'),
+                dimensions=dimensions_str,
+                quantity_tons=quantity_tons,
+                surface_finish=request.POST.get('surface_finish'),
+                
+                # Checkboxes return 'yes' if checked, None if unchecked
+                heat_treatment=(request.POST.get('heat_treatment') == 'yes'),
+                ultrasonic_test=(request.POST.get('ultrasonic_test') == 'yes'),
+                mill_certificate=(request.POST.get('mill_certificate') == 'yes'),
+                
+                # Retrieve the single blueprint file
+                blueprint_file=request.FILES.get('blueprint_file'),
+                admin_notes=request.POST.get('admin_notes')
+            )
+
+            # 5. Handle Multiple Reference Images
+            # Using .getlist() allows us to capture multiple image files from the single HTML input
+            images = request.FILES.getlist('reference_images')
+            for img in images:
+                OrderImage.objects.create(order=new_order, image=img)
+
+            # 6. Success Notification
+            messages.success(request, f"Manufacturing Order {new_order.order_id} successfully created!")
+            return redirect('admin_panel')
+
+        except Exception as e:
+            # Catches errors (like if you try to submit an Order ID that already exists)
+            messages.error(request, f"Error saving order: {e}")
+            return redirect('admin_panel')
+
+    # If it's a normal GET request, just render the empty form page
+    return render(request, 'home/admin_panel.html')
+
 
 def _get_role_redirect(user):
     """Return the URL name to redirect to based on user role."""

@@ -9,12 +9,12 @@
 </head>
 <body>
 {% include 'home/includes/portal_nav_bar.html' %}
-<nav class="navbar navbar-dark designer-header mb-4">
-    <div class="container d-flex justify-content-between">
-        <span class="navbar-brand mb-0">Pickup step (auto)</span>
-        <a href="{% url 'designer_plan_editor' plan_id=plan.pk %}" class="btn btn-outline-light btn-sm">Plan</a>
+<div class="border-bottom bg-light py-3 mb-3">
+    <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span class="mb-0 h5 text-dark">Pickup step (auto)</span>
+        <a href="{% url 'designer_plan_editor' plan_id=plan.pk %}" class="btn btn-outline-secondary btn-sm">Plan</a>
     </div>
-</nav>
+</div>
 <div class="container">
     <div class="alert alert-secondary">
         This step is <strong>generated from the BOM</strong> on the manufacturing step below. Edit materials there; the graph updates when you save.

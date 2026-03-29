@@ -9,11 +9,11 @@
 </head>
 <body>
 {% include 'home/includes/portal_nav_bar.html' %}
-<nav class="navbar navbar-dark designer-header mb-4">
+<div class="border-bottom bg-light py-3 mb-3">
     <div class="container">
-        <a href="{% url 'designer_item_reservation_list' %}" class="text-white text-decoration-none">&larr; Reservations</a>
+        <a href="{% url 'designer_item_reservation_list' %}" class="link-dark text-decoration-none">&larr; Reservations</a>
     </div>
-</nav>
+</div>
 <div class="container" style="max-width:560px;">
     <form method="post" class="card card-body shadow-sm">
         {% csrf_token %}

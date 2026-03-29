@@ -12,20 +12,20 @@
 
 {% include 'home/includes/portal_nav_bar.html' %}
 
-<nav class="navbar navbar-dark designer-header">
-    <div class="container-fluid d-flex justify-content-between align-items-center px-4">
-        <span class="navbar-brand mb-0 h4">
-            <a href="{% url 'designer_dashboard' %}" class="text-white text-decoration-none">Dashboard</a>
+<div class="border-bottom bg-light py-3">
+    <div class="container-fluid d-flex justify-content-between align-items-center flex-wrap gap-2 px-4">
+        <div class="mb-0 h5 text-dark">
+            <a href="{% url 'designer_dashboard' %}" class="link-dark text-decoration-none">Dashboard</a>
             &rsaquo;
-            <a href="{% url 'designer_order_detail' order_id=plan.order.pk %}" class="text-white text-decoration-none">{{ plan.order.order_id }}</a>
+            <a href="{% url 'designer_order_detail' order_id=plan.order.pk %}" class="link-dark text-decoration-none">{{ plan.order.order_id }}</a>
             &rsaquo; {{ plan.name }}
-        </span>
+        </div>
         <div>
-            <span class="text-light me-3">{{ request.user.username }}</span>
-            <a href="{% url 'logout' %}" class="btn btn-outline-light btn-sm">Logout</a>
+            <span class="text-muted small me-2">{{ request.user.username }}</span>
+            <a href="{% url 'logout' %}" class="btn btn-outline-secondary btn-sm">Logout</a>
         </div>
     </div>
-</nav>
+</div>
 
 <div class="container-fluid mt-3 px-4">
 

@@ -9,15 +9,15 @@
 </head>
 <body>
 {% include 'home/includes/portal_nav_bar.html' %}
-<nav class="navbar navbar-dark mfg-header">
-    <div class="container d-flex justify-content-between align-items-center">
-        <span class="navbar-brand mb-0 h4">
-            <a href="{% url 'manufacturer_dashboard' %}" class="text-white text-decoration-none">Manufacturer</a>
-            &rsaquo; {{ order.order_id }} &rsaquo; <span style="color:#c5b3e0;">Pickup (read-only)</span>
-        </span>
-        <a href="{% url 'logout' %}" class="btn btn-outline-light btn-sm">Logout</a>
+<div class="border-bottom bg-light py-3">
+    <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="mb-0 h5 text-dark">
+            <a href="{% url 'manufacturer_dashboard' %}" class="link-dark text-decoration-none">Manufacturer</a>
+            &rsaquo; {{ order.order_id }} &rsaquo; <span class="text-secondary">Pickup (read-only)</span>
+        </div>
+        <a href="{% url 'logout' %}" class="btn btn-outline-secondary btn-sm">Logout</a>
     </div>
-</nav>
+</div>
 <div class="container mt-4">
     <div class="alert alert-info">
         This is a <strong>warehouse pickup</strong> step. Progress is recorded by warehouse staff only.

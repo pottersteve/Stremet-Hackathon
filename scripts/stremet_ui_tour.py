@@ -146,8 +146,14 @@ def run_tour(args: argparse.Namespace) -> None:
     order_id = args.order_id or f"SO-2026-{int(time.time())}"
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, slow_mo=args.slow_mo)
-        context = browser.new_context(viewport={"width": 1400, "height": 900})
+        # no_viewport + maximized window: page follows real browser size so you can resize
+        # and use DevTools, other tabs, or a second monitor like a normal Chromium session.
+        browser = p.chromium.launch(
+            headless=False,
+            slow_mo=args.slow_mo,
+            args=["--start-maximized"],
+        )
+        context = browser.new_context(no_viewport=True)
         page = context.new_page()
 
         try:

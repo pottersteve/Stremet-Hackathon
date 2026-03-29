@@ -1,6 +1,6 @@
 # Stremet sample data (sheet metal production)
 
-This project includes a Django management command that **removes only a fixed scope of sample rows** and **recreates** realistic content: B2B clients, sales orders, manufacturing plans (BOM, quality checks, dependencies, warehouse pickups), stock, chats, modification requests, and reference images.
+This project includes a Django management command that **flushes the entire database** (all application data Django manages, equivalent to `python manage.py flush --no-input`), runs **`migrate`** to restore content types and permissions, recreates warehouse storage slots if needed, then loads realistic sample content: B2B clients, sales orders, manufacturing plans (BOM, quality checks, dependencies, warehouse pickups), stock, chats, modification requests, and reference images.
 
 **Context:** Data is written to resemble Finnish sheet metal subcontracting (laser, bending, welding, punching, painting, assembly) and industrial customers (elevators, HVAC, machinery, energy, transport, healthcare, construction, lighting). Company and person names are **fictional**; email domains are invented for training and **must not** be used to send real mail.
 
@@ -29,16 +29,9 @@ python manage.py seed_stremet_demo
 
 ### What gets removed
 
-Only rows that match this command’s **fixed identifiers** (everything else is left as-is):
+**Everything** in the database that Django’s `flush` clears: all users (including superusers), sessions, orders, plans, warehouse rows, admin log, and other app tables. The schema and migration history stay; **`migrate`** is run immediately after flush so `django_content_type`, `auth_permission`, and related system rows are repopulated.
 
-| Scope | Rule |
-|--------|------|
-| Orders | `order_id` starts with **`SO-2026-90`** (block **SO-2026-9001** … **SO-2026-9018**). |
-| Warehouse catalog | `ItemReservation.sku` in the built-in seed list (e.g. `SHE-DC01-2.0-ZE`, `TUB-S235-30X30X2`, …). |
-| Clients | The eight procurement contact emails listed below. |
-| Users | Usernames: `virtanen.mikko`, `nieminen.laura`, `koskinen.jukka`, `lehtonen.sanna`, `makinen.eero`, `rantanen.helena`, `lindstrom.noora`. |
-
-**Important:** If you ever seeded with an older command that used different order IDs or SKUs, those old rows are **not** removed by this wipe. Clean them manually or use a fresh database.
+**Warning:** Do not run this command against any database that holds data you need to keep. Use a dedicated dev or demo database only.
 
 ### Password
 
@@ -95,7 +88,7 @@ Customer-facing progress uses **manufacturing steps** on the plan (`customer_ord
 
 ## Warehouse material SKUs (seed catalog)
 
-Examples (all are removed on re-seed if still present):
+Examples (inserted after each full flush):
 
 - `SHE-DC01-2.0-ZE`, `SHE-304-1.5-2B`, `SHE-S355MC-3.0` — sheet  
 - `TUB-S235-30X30X2` — tube  
@@ -107,8 +100,8 @@ Examples (all are removed on re-seed if still present):
 ## Security
 
 - Default password and fictional domains are for **local training and presentations** only.  
-- Do not run against production without reviewing wipe scope and credentials.  
-- Re-running the command only clears the scoped identifiers above.
+- **Never** run `seed_stremet_demo` against production or shared databases: it **wipes all data**.  
+- After a run you must **create a new superuser** if you need Django admin access (`createsuperuser`), because existing admin accounts are deleted by flush.
 
 ---
 

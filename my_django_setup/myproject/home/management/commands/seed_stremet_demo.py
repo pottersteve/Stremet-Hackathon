@@ -1,8 +1,9 @@
 """
-Remove previously seeded sample rows (by fixed order IDs, SKUs, usernames, client emails),
-then create realistic Stremet-style sheet metal subcontracting data.
+Flush the entire database, then create realistic Stremet-style sheet metal data.
 
-Strings in the database are written as production-like data (no internal codenames).
+Destructive: removes all rows Django manages (same as ``manage.py flush``), then
+runs ``migrate`` to restore content types and permissions, re-seeds warehouse
+slots if needed, and inserts sample users, orders, and related records.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from io import BytesIO
 
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
+from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
@@ -37,46 +39,7 @@ from home.models import (
 )
 from warehouse.models import ItemReservation, StorageSpace, StoredItem
 
-# Wipe: sales orders in this numeric block only (SO-2026-9001 … SO-2026-9018).
-SEED_ORDER_ID_PREFIX = "SO-2026-90"
-
-# Catalog SKUs — realistic ERP-style codes; wipe matches this exact set.
-SEED_MATERIAL_SKUS: tuple[str, ...] = (
-    "SHE-DC01-2.0-ZE",
-    "SHE-304-1.5-2B",
-    "TUB-S235-30X30X2",
-    "HW-M6-A2-ASM01",
-    "POW-RAL7035-EP",
-    "SHE-S355MC-3.0",
-)
-
 DEFAULT_SEED_PASSWORD = "StremetTrain2026!"
-
-
-DEMO_CLIENT_EMAILS = frozenset(
-    {
-        "eero.makinen@pohjanlift.fi",
-        "helena.rantanen@salohvac.fi",
-        "antti.korhonen@koneturva.fi",
-        "liisa.hamalainen@latauskaari.fi",
-        "noora.lindstrom@medpanel.fi",
-        "markus.salo@tuuli-inverter.fi",
-        "kaisa.toivonen@julkisivukiinnike.fi",
-        "petri.heikkinen@logistiikkakori.fi",
-    }
-)
-
-SEED_USERNAMES = frozenset(
-    {
-        "virtanen.mikko",
-        "nieminen.laura",
-        "koskinen.jukka",
-        "lehtonen.sanna",
-        "makinen.eero",
-        "rantanen.helena",
-        "lindstrom.noora",
-    }
-)
 
 DEMO_USERS: list[dict] = [
     {
@@ -184,19 +147,13 @@ def _tiny_png(filename: str) -> ContentFile:
     return ContentFile(buf.getvalue(), name=filename)
 
 
-def wipe_stremet_seed_data() -> None:
-    """Remove rows created by this command (same identifiers as seed)."""
-    order_qs = Order.objects.filter(order_id__startswith=SEED_ORDER_ID_PREFIX)
-    order_qs.delete()
-
-    res_qs = ItemReservation.objects.filter(sku__in=SEED_MATERIAL_SKUS)
-    res_ids = list(res_qs.values_list("pk", flat=True))
-    if res_ids:
-        StoredItem.objects.filter(item_reservation_id__in=res_ids).delete()
-    res_qs.delete()
-
-    Client.objects.filter(email__in=DEMO_CLIENT_EMAILS).delete()
-    User.objects.filter(username__in=SEED_USERNAMES).delete()
+def _ensure_storage_spaces() -> None:
+    """Recreate slots 1..100 after ``flush`` (migration seed data is cleared too)."""
+    if StorageSpace.objects.exists():
+        return
+    StorageSpace.objects.bulk_create(
+        [StorageSpace(slot_number=i) for i in range(1, 101)]
+    )
 
 
 def _ensure_users() -> dict[str, User]:
@@ -553,16 +510,23 @@ def _create_manufacturing_graph(
 
 class Command(BaseCommand):
     help = (
-        "Remove Stremet sample seed data (fixed SO/SKU/user scope) and regenerate "
-        "realistic sheet-metal production content."
+        "DESTRUCTIVE: flush entire database, then load Stremet sample sheet-metal data."
     )
 
     def handle(self, *args, **options):
-        with transaction.atomic():
-            self.stdout.write("Removing previous Stremet sample data (same scope)...")
-            wipe_stremet_seed_data()
+        self.stdout.write(
+            self.style.WARNING(
+                "Flushing all database tables (same as manage.py flush --no-input)..."
+            )
+        )
+        call_command("flush", interactive=False, verbosity=0)
+        self.stdout.write("Running migrate (content types, permissions)...")
+        call_command("migrate", interactive=False, verbosity=0)
+        _ensure_storage_spaces()
 
-            self.stdout.write("Creating users...")
+        order_specs = _build_orders()
+        with transaction.atomic():
+            self.stdout.write("Seeding users, clients, orders, plans, warehouse...")
             users = _ensure_users()
             designer = users["nieminen.laura"]
             wh_user = users["lehtonen.sanna"]
@@ -583,7 +547,6 @@ class Command(BaseCommand):
             admin_u = users["virtanen.mikko"]
             cust_elev = users["makinen.eero"]
 
-            order_specs = _build_orders()
             for idx, spec in enumerate(order_specs):
                 cl = client_by_email[spec["client_email"]]
                 td = date.today() + timedelta(days=14 + (idx % 10) * 3)

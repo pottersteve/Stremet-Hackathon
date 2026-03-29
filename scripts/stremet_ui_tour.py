@@ -2,7 +2,7 @@
 """
 Automated UI walkthrough: migrate, seed sample data, start Django, drive the app with Playwright.
 
-Credentials and seed scope: STREMET_DEMO_DATA.md (STREMET_SEED_PASSWORD).
+Credentials: STREMET_DEMO_DATA.md (STREMET_SEED_PASSWORD). seed_stremet_demo flushes the DB.
 
 Use a project virtual environment:
 

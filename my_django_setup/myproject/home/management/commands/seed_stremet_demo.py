@@ -147,13 +147,19 @@ def _tiny_png(filename: str) -> ContentFile:
     return ContentFile(buf.getvalue(), name=filename)
 
 
+STORAGE_SLOT_COUNT = 200
+
+
 def _ensure_storage_spaces() -> None:
-    """Recreate slots 1..100 after ``flush`` (migration seed data is cleared too)."""
-    if StorageSpace.objects.exists():
-        return
-    StorageSpace.objects.bulk_create(
-        [StorageSpace(slot_number=i) for i in range(1, 101)]
-    )
+    """Ensure slots 1..STORAGE_SLOT_COUNT exist (``flush`` clears rows from migrations too)."""
+    existing = set(StorageSpace.objects.values_list("slot_number", flat=True))
+    missing = [
+        StorageSpace(slot_number=i)
+        for i in range(1, STORAGE_SLOT_COUNT + 1)
+        if i not in existing
+    ]
+    if missing:
+        StorageSpace.objects.bulk_create(missing)
 
 
 def _ensure_users() -> dict[str, User]:
@@ -232,7 +238,7 @@ def _ensure_material_catalog(designer: User) -> dict[str, ItemReservation]:
 
 def _seed_stock(materials: dict[str, ItemReservation], warehouse_user: User) -> None:
     used = set(StoredItem.objects.values_list("storage_space_id", flat=True))
-    # Use every slot (100 after _ensure_storage_spaces). Previously [:80] capped total
+    # Use every slot (200 after _ensure_storage_spaces). Previously [:80] capped total
     # inventory and starved demo pickups: laser BOM lines need ceil(qty) units each,
     # and multiple confirmed pickups consume DC01 quickly.
     free = list(

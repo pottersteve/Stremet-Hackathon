@@ -25,7 +25,7 @@ class ItemReservation(models.Model):
 
 
 class StorageSpace(models.Model):
-    """Fixed slot 1..100; at most one StoredItem at a time."""
+    """Fixed slot 1..200; at most one StoredItem at a time."""
 
     slot_number = models.PositiveIntegerField(unique=True, db_index=True)
 

@@ -45,6 +45,12 @@ USER_MANUFACTURER = "koskinen.jukka"
 CLIENT_COMPANY = "Pohjan Lift Components Oy"
 CLIENT_EMAIL = "eero.makinen@pohjanlift.fi"
 
+# Designer graph: step names must stay in sync with label substrings used for dependency wiring.
+DESIGNER_STEP1_NAME = "Laser cut — cab bracket blanks"
+DESIGNER_STEP1_LABEL_SNIP = "Laser cut"
+DESIGNER_STEP2_NAME = "Press brake — brackets"
+DESIGNER_STEP2_LABEL_SNIP = "Press brake"
+
 _server_proc: subprocess.Popen | None = None
 
 
@@ -117,6 +123,23 @@ def beat_pause(label: str, args: argparse.Namespace) -> None:
 def after_action(page, delay_ms: int) -> None:
     if delay_ms > 0:
         page.wait_for_timeout(delay_ms)
+
+
+def connect_designer_dependency_edge(page, prereq_sub: str, dep_sub: str) -> None:
+    """Prerequisite step label substring → dependent step (matches graph_editor.js hook)."""
+    res = page.evaluate(
+        """(subs) => {
+            const G = window.__STREMET_DESIGNER_GRAPH;
+            if (!G) return 'no-hook';
+            return G.connectStepsByLabel(subs[0], subs[1]);
+        }""",
+        [prereq_sub, dep_sub],
+    )
+    if res not in ("ok", "exists"):
+        raise RuntimeError(
+            f"Dependency edge ({prereq_sub!r} → {dep_sub!r}) failed: {res!r}. "
+            "Reload the plan editor so graph_editor.js exposes __STREMET_DESIGNER_GRAPH."
+        )
 
 
 def expand_textarea_height_extra_percent(locator, extra_percent: int) -> None:
@@ -244,7 +267,7 @@ def run_tour(args: argparse.Namespace) -> None:
 
             reply_ta = card_loc.locator('textarea[name="chat_message"]').first
             reply_ta.wait_for(state="visible", timeout=15000)
-            expand_textarea_height_extra_percent(reply_ta, 100)
+            expand_textarea_height_extra_percent(reply_ta, 150)
             after_action(page, delay_ms)
 
             deadline = time.monotonic() + args.ai_timeout_sec
@@ -287,7 +310,7 @@ def run_tour(args: argparse.Namespace) -> None:
             page.locator('button[data-bs-target="#addStepModal"]').click()
             after_action(page, delay_ms)
             page.locator("#addStepModal").locator('input[name="name"]').fill(
-                "Laser cut — cab bracket blanks"
+                DESIGNER_STEP1_NAME
             )
             after_action(page, delay_ms)
             beat_pause("Add manufacturing step", args)
@@ -330,6 +353,28 @@ def run_tour(args: argparse.Namespace) -> None:
 
             page.get_by_role("link", name=re.compile(r"Back to Plan")).click()
             page.wait_for_load_state("networkidle")
+            after_action(page, delay_ms)
+            beat_pause("Create second step", args)
+
+            # Second manufacturing step (fully automated) + dependency: step1 → step2
+            page.locator('button[data-bs-target="#addStepModal"]').click()
+            after_action(page, delay_ms)
+            page.locator("#addStepModal").locator('input[name="name"]').fill(
+                DESIGNER_STEP2_NAME
+            )
+            after_action(page, delay_ms)
+            page.locator("#addStepModal").get_by_role(
+                "button", name=re.compile(r"^Add Step$")
+            ).click()
+            page.wait_for_load_state("networkidle")
+            after_action(page, delay_ms)
+            page.locator("#graph-canvas").wait_for(state="visible", timeout=15000)
+            after_action(page, delay_ms)
+            page.locator("#btn-add-dependency").click()
+            after_action(page, delay_ms)
+            connect_designer_dependency_edge(
+                page, DESIGNER_STEP1_LABEL_SNIP, DESIGNER_STEP2_LABEL_SNIP
+            )
             after_action(page, delay_ms)
 
             page.locator("#plan-update-form").locator('select[name="status"]').select_option(

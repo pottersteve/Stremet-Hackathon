@@ -22,8 +22,8 @@
         
         /* Role-specific color themes */
         .admin-bg { background-color: #2c3e50; color: white; }
-        .mfg-bg { background-color: #a85c57; color: white; }
-        .customer-bg { background-color: #2980b9; color: white; }
+        .roles-bg { background-color: #a85c57; color: white; }
+        .othersIDK { background-color: #2980b9; color: white; }
         .shared-bg { background-color: #7f8c8d; color: white; }
         
         .header-banner {
@@ -92,9 +92,11 @@
                 <div class="col-md-4">
                     <a href="{% url 'designer_dashboard' %}" class="text-decoration-none">
                         <div class="card panel-card mfg-bg shadow-sm">
+                    <a href="{% url 'staff_dashboard' %}" class="text-decoration-none">
+                        <div class="card panel-card roles-bg shadow-sm">
                             <div class="card-body text-center p-4">
                                 <h1 class="display-4 mb-3">⚙️</h1>
-                                <h4 class="card-title fw-bold">Production Floor</h4>
+                                <h4 class="card-title fw-bold">Manufacturer Portal</h4>
                                 <p class="card-text small">Update flowchart stages and mark item steps as complete.</p>
                             </div>
                         </div>
@@ -103,11 +105,35 @@
 
                 <div class="col-md-4">
                     <a href="#" class="text-decoration-none">
-                        <div class="card panel-card mfg-bg shadow-sm">
+                        <div class="card panel-card roles-bg shadow-sm">
                             <div class="card-body text-center p-4">
                                 <h1 class="display-4 mb-3">🔍</h1>
                                 <h4 class="card-title fw-bold">Quality Control Logs</h4>
                                 <p class="card-text small">Review ultrasonic tests and mill certificates.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="col-md-4">
+                    <a href="#" class="text-decoration-none">
+                        <div class="card panel-card roles-bg shadow-sm">
+                            <div class="card-body text-center p-4">
+                                <h1 class="display-4 mb-3">🗂</h1>
+                                <h4 class="card-title fw-bold">Designer</h4>
+                                <p class="card-text small">-- tell what this does --</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="col-md-4">
+                    <a href="#" class="text-decoration-none">
+                        <div class="card panel-card roles-bg shadow-sm">
+                            <div class="card-body text-center p-4">
+                                <h1 class="display-4 mb-3">🏗</h1>
+                                <h4 class="card-title fw-bold">Warehouse</h4>
+                                <p class="card-text small">-- tell what this does --</p>
                             </div>
                         </div>
                     </a>
@@ -153,6 +179,18 @@
                             <h1 class="display-4 mb-3">💬</h1>
                             <h4 class="card-title fw-bold">Support & Messages</h4>
                             <p class="card-text small">Access your communication history and active support tickets.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-4">
+                <a href="{% url 'support_hub' %}" class="text-decoration-none">
+                    <div class="card panel-card othersIDK shadow-sm">
+                        <div class="card-body text-center p-4">
+                            <h1 class="display-4 mb-3">📟</h1>
+                            <h4 class="card-title fw-bold">Django Database</h4>
+                            <p class="card-text small">Access the actual database interface.</p>
                         </div>
                     </div>
                 </a>

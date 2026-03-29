@@ -15,6 +15,10 @@ from django.http import (
     StreamingHttpResponse,
 )
 from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from .models import Order
 
 from .auth_utils import ensure_user_profile, get_profile_role
 from .models import ChatMessage, Client, Order, OrderImage
@@ -694,3 +698,42 @@ def send_chat_message(request):
     return JsonResponse(payload)
 
 
+
+
+@login_required(login_url='login')
+def quality_control_dashboard(request):
+    """Dashboard for Quality Control to pass/fail orders before shipping."""
+    
+    # Restrict to staff/admins only
+    profile = getattr(request.user, 'profile', None)
+    if not request.user.is_superuser and (profile and profile.role not in ['admin', 'manufacturer']):
+        messages.error(request, "Access Denied. You do not have QC permissions.")
+        return redirect('home_dashboard')
+
+    if request.method == 'POST':
+        order_id = request.POST.get('order_id')
+        action = request.POST.get('action')
+        order = get_object_or_404(Order, order_id=order_id)
+        
+        if action == 'pass':
+            # Update status to Ready for Shipping
+            order.status = 'shipping'
+            order.save()
+            messages.success(request, f"✅ Order {order.order_id} passed Quality Control and is ready for shipping!")
+        
+        elif action == 'fail':
+            # Log the failure reason in admin notes
+            fail_reason = request.POST.get('fail_reason', 'No reason provided.')
+            existing_notes = order.admin_notes or ""
+            order.admin_notes = f"{existing_notes}\n[QC FAILED]: {fail_reason}"
+            order.status = 'finishing' # Send back to finishing stage
+            order.save()
+            messages.error(request, f"❌ Order {order.order_id} failed QC. Flagged for rework.")
+            
+        return redirect('quality_control')
+
+    # Fetch orders that need QC (Exclude delivered/shipped orders)
+    # We prioritize orders that requested Ultrasonic Testing or Mill Certificates
+    orders_pending_qc = Order.objects.exclude(status__in=['shipping', 'delivered']).order_by('target_delivery')
+
+    return render(request, 'home/quality_control.html', {'orders': orders_pending_qc})

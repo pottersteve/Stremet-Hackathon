@@ -60,7 +60,6 @@
         <div class="row g-4">
 
             {% if request.user.profile.role == 'admin' or request.user.is_superuser %}
-                
                 <div class="col-md-4">
                     <a href="{% url 'admin_panel' %}" class="text-decoration-none">
                         <div class="card panel-card admin-bg shadow-sm">
@@ -90,9 +89,7 @@
             {% if request.user.profile.role == 'manufacturer' or request.user.is_superuser %}
                 
                 <div class="col-md-4">
-                    <a href="{% url 'designer_dashboard' %}" class="text-decoration-none">
-                        <div class="card panel-card mfg-bg shadow-sm">
-                    <a href="{% url 'staff_dashboard' %}" class="text-decoration-none">
+                    <a href="{% url 'manufacturer_dashboard' %}" class="text-decoration-none">
                         <div class="card panel-card roles-bg shadow-sm">
                             <div class="card-body text-center p-4">
                                 <h1 class="display-4 mb-3">⚙️</h1>
@@ -104,7 +101,7 @@
                 </div>
 
                 <div class="col-md-4">
-                    <a href="#" class="text-decoration-none">
+                    <a href="{% url 'quality_control' %}" class="text-decoration-none">
                         <div class="card panel-card roles-bg shadow-sm">
                             <div class="card-body text-center p-4">
                                 <h1 class="display-4 mb-3">🔍</h1>
@@ -116,7 +113,7 @@
                 </div>
 
                 <div class="col-md-4">
-                    <a href="#" class="text-decoration-none">
+                    <a href=" {% url 'designer_dashboard' %} " class="text-decoration-none">
                         <div class="card panel-card roles-bg shadow-sm">
                             <div class="card-body text-center p-4">
                                 <h1 class="display-4 mb-3">🗂</h1>
@@ -128,7 +125,7 @@
                 </div>
 
                 <div class="col-md-4">
-                    <a href="#" class="text-decoration-none">
+                    <a href="{% url 'warehouse_dashboard' %}" class="text-decoration-none">
                         <div class="card panel-card roles-bg shadow-sm">
                             <div class="card-body text-center p-4">
                                 <h1 class="display-4 mb-3">🏗</h1>
@@ -139,38 +136,6 @@
                     </a>
                 </div>
             {% endif %}
-
-            <!---
-
-            {% if request.user.profile.role == 'customer'  or request.user.is_superuser%}
-                
-                <div class="col-md-4">
-                    <a href="{% url 'customer_panel' %}" class="text-decoration-none">
-                        <div class="card panel-card customer-bg shadow-sm">
-                            <div class="card-body text-center p-4">
-                                <h1 class="display-4 mb-3">📦</h1>
-                                <h4 class="card-title fw-bold">Track Active Orders</h4>
-                                <p class="card-text small">View real-time manufacturing progress of your steel components.</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-
-                <div class="col-md-4">
-                    <a href="#" class="text-decoration-none">
-                        <div class="card panel-card customer-bg shadow-sm">
-                            <div class="card-body text-center p-4">
-                                <h1 class="display-4 mb-3">📐</h1>
-                                <h4 class="card-title fw-bold">Request Modification</h4>
-                                <p class="card-text small">Submit blueprint changes or tolerance adjustments.</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-            {% endif %}
-
-            --->
-
 
             <div class="col-md-4">
                 <a href="{% url 'support_hub' %}" class="text-decoration-none">
@@ -185,7 +150,7 @@
             </div>
 
             <div class="col-md-4">
-                <a href="{% url 'support_hub' %}" class="text-decoration-none">
+                <a href="/admin/" class="text-decoration-none">
                     <div class="card panel-card othersIDK shadow-sm">
                         <div class="card-body text-center p-4">
                             <h1 class="display-4 mb-3">📟</h1>

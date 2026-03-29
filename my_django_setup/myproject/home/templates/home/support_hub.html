@@ -43,6 +43,9 @@
         }
     </style>
 </head>
+{% if user.is_authenticated %}
+{% include 'home/includes/portal_nav_bar.html' %}
+{% endif %}
 <body>
 <form class="d-none" aria-hidden="true">{% csrf_token %}</form>
 

@@ -13,6 +13,9 @@
         .accordion-button:not(.collapsed) { background-color: #e9ecef; color: #2c3e50; font-weight: bold; }
     </style>
 </head>
+{% if user.is_authenticated %}
+{% include 'home/includes/portal_nav_bar.html' %}
+{% endif %}
 <body>
 
 <div class="admin-header">

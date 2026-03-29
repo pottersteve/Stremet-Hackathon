@@ -1,10 +1,109 @@
 {% if show_admin_portal_nav %}
-<div class="bg-dark border-bottom border-secondary py-2">
-    <div class="container-fluid px-3 px-md-4 d-flex flex-wrap align-items-center gap-2">
-        <span class="text-white-50 small me-1 text-uppercase">Admin navigation</span>
-        {% for item in portal_nav_items %}
-        <a href="{{ item.url }}" class="btn btn-sm btn-outline-light">{{ item.label }}</a>
-        {% endfor %}
+<style>
+    /* =========================================
+   UNIQUE ADMIN NAVIGATION STRIP
+   ========================================= */
+
+/* The main dark ribbon background */
+.stremet-sysnav-wrapper {
+    background: linear-gradient(90deg, #111827 0%, #1f2937 100%);
+    border-bottom: 2px solid #2980b9; /* Matches your portal header blue */
+    padding: 12px 0;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* The 'Admin Zone' pill badge */
+.stremet-sysnav-badge {
+    display: inline-flex;
+    align-items: center;
+    background-color: rgba(41, 128, 185, 0.15);
+    color: #63b3ed;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(41, 128, 185, 0.4);
+    margin-right: 25px;
+}
+
+/* The glowing dot inside the badge */
+.stremet-sysnav-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #63b3ed;
+    border-radius: 50%;
+    margin-right: 8px;
+    box-shadow: 0 0 8px #63b3ed;
+    animation: sysnav-pulse 2s infinite;
+}
+
+/* The flex container for the links */
+.stremet-sysnav-menu {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+/* The individual link buttons */
+.stremet-sysnav-link {
+    color: #d1d5db;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 6px 16px;
+    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid transparent;
+    transition: all 0.2s ease-in-out;
+}
+
+/* Link Hover State */
+.stremet-sysnav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Soft glowing animation for the dot */
+@keyframes sysnav-pulse {
+    0% { opacity: 1; box-shadow: 0 0 8px #63b3ed; }
+    50% { opacity: 0.5; box-shadow: 0 0 2px #63b3ed; }
+    100% { opacity: 1; box-shadow: 0 0 8px #63b3ed; }
+}
+</style>
+<div class="stremet-sysnav-wrapper">
+    <div class="container-fluid px-3 px-md-4 d-flex flex-wrap align-items-center">
+        
+        <div class="stremet-sysnav-badge">
+            <span class="stremet-sysnav-dot"></span>
+            Admin Zone
+        </div>
+
+
+        <div class="stremet-sysnav-menu">
+            {% for item in portal_nav_items %}
+                <a href="{{ item.url }}" class="stremet-sysnav-link">{{ item.label }}</a>
+            {% endfor %}
+        </div>
+
+        <div class="stremet-sysnav-menu" style="padding-left: 10px;">
+
+                <a href="{% url 'quality_control' %}" class="stremet-sysnav-link">Quality Control</a>
+
+        </div>
+
+
+                <div class="stremet-sysnav-menu" style="padding-left: 10px;">
+
+                <a href="{% url 'support_hub' %}" class="stremet-sysnav-link">support msg</a>
+
+        </div>
+
+        
     </div>
 </div>
 {% endif %}

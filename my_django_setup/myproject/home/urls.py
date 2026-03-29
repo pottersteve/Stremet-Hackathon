@@ -14,4 +14,5 @@ urlpatterns = [
     path("send-chat/", views.send_chat_message, name="send_chat_message"),
     path("ai-suggest/", views.generate_ai_suggestion, name="generate_ai_suggestion"),
     path("client_directory/", views.client_directory, name="client_directory"),
+    path("quality-control/", views.quality_control_dashboard, name="quality_control"),
 ]

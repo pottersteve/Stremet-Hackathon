@@ -1,0 +1,107 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stremet | Quality Control</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <style>
+        .qc-header { background-color: #1abc9c; color: white; padding: 20px 0; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .qc-card { background-color: white; border-radius: 8px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-left: 5px solid #34495e; }
+        .qc-spec-box { background-color: #f8f9fa; border-radius: 6px; padding: 15px; border: 1px solid #e9ecef; }
+    </style>
+</head>
+{% if user.is_authenticated %}
+{% include 'home/includes/portal_nav_bar.html' %}
+{% endif %}
+<body style="background-color: #f4f6f9;">
+
+<div class="qc-header">
+    <div class="container d-flex justify-content-between align-items-center">
+        <h2 class="mb-0">🔍 Quality Control Inspection</h2>
+        <div>
+            <span class="me-3 text-light fw-bold">Inspector: {{ request.user.username }}</span>
+            <a href="{% url 'staff_dashboard' %}" class="btn btn-outline-light btn-sm">Back to Dashboard</a>
+        </div>
+    </div>
+</div>
+
+
+<div class="container mb-5">
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <div class="col-12">
+            <h4 class="mb-4 text-muted">Orders Pending Final Inspection</h4>
+            
+            {% for order in orders %}
+                <div class="qc-card">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="mb-0 text-primary">{{ order.order_id }}</h4>
+                        <span class="badge bg-secondary fs-6">{{ order.get_status_display }}</span>
+                    </div>
+                    
+                    <p class="text-muted mb-4"><strong>Client:</strong> {{ order.client.company_name }} | <strong>Target Delivery:</strong> {{ order.target_delivery }}</p>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-7">
+                            <div class="qc-spec-box">
+                                <h6 class="fw-bold border-bottom pb-2 mb-3">Inspection Checklist</h6>
+                                <div class="row">
+                                    <div class="col-6 mb-2"><strong>Steel Grade:</strong> {{ order.steel_grade }}</div>
+                                    <div class="col-6 mb-2"><strong>Form:</strong> {{ order.product_form|default:"N/A" }}</div>
+                                    <div class="col-6 mb-2"><strong>Dimensions:</strong> {{ order.dimensions }}</div>
+                                    <div class="col-6 mb-2"><strong>Finish:</strong> {{ order.surface_finish|default:"N/A" }}</div>
+                                    
+                                    <div class="col-12 mt-3">
+                                        {% if order.heat_treatment %}<span class="badge bg-danger me-1">🔥 Heat Treatment Req.</span>{% endif %}
+                                        {% if order.ultrasonic_test %}<span class="badge bg-info text-dark me-1">🔊 Ultrasonic Test Req.</span>{% endif %}
+                                        {% if order.mill_certificate %}<span class="badge bg-dark me-1">📜 Mill Certificate Req.</span>{% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-5">
+                            <form method="POST" action="{% url 'quality_control' %}" class="h-100 d-flex flex-column justify-content-between">
+                                {% csrf_token %}
+                                <input type="hidden" name="order_id" value="{{ order.order_id }}">
+                                
+                                <div>
+                                    <label class="form-label fw-bold">Inspector Notes (Required if Failed):</label>
+                                    <textarea name="fail_reason" class="form-control mb-3" rows="2" placeholder="e.g., Dimensions out of tolerance by 2mm..."></textarea>
+                                </div>
+                                
+                                <div class="d-flex gap-2">
+                                    <button type="submit" name="action" value="fail" class="btn btn-outline-danger w-50 fw-bold">❌ FAIL / Rework</button>
+                                    <button type="submit" name="action" value="pass" class="btn btn-success w-50 fw-bold">✅ PASS Inspection</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                </div>
+            {% empty %}
+                <div class="alert alert-success text-center py-5 shadow-sm">
+                    <h4>🎉 All caught up!</h4>
+                    <p class="text-muted mb-0">There are no orders currently pending Quality Control inspection.</p>
+                </div>
+            {% endfor %}
+            
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

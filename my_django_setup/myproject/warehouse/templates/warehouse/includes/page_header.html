@@ -1,0 +1,21 @@
+{# Breadcrumb-style app bar: matches manufacturer / designer interior headers. #}
+{# wh_headline: single title after Warehouse › #}
+{# Optional: wh_mid_url_name + wh_mid_label + wh_tail for Warehouse › Mid › Tail #}
+<nav class="navbar navbar-dark wh-header">
+    <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span class="navbar-brand mb-0 h4">
+            <a href="{% url 'warehouse_dashboard' %}" class="text-white text-decoration-none">Warehouse</a>
+            {% if wh_mid_label and wh_mid_url_name %}
+                &rsaquo;
+                <a href="{% url wh_mid_url_name %}" class="text-white text-decoration-none">{{ wh_mid_label }}</a>
+                {% if wh_tail %}&rsaquo; {{ wh_tail }}{% endif %}
+            {% elif wh_headline %}
+                &rsaquo; {{ wh_headline }}
+            {% endif %}
+        </span>
+        <div>
+            <span class="text-light me-3">{{ request.user.username }}</span>
+            <a href="{% url 'logout' %}" class="btn btn-outline-light btn-sm">Logout</a>
+        </div>
+    </div>
+</nav>

@@ -12,9 +12,7 @@
 
 {% include 'home/includes/portal_nav_bar.html' %}
 
-<nav class="navbar navbar-dark wh-header">
-    {% include 'warehouse/includes/subnav.html' with wh_nav_active='pickup' %}
-</nav>
+{% include 'warehouse/includes/page_header.html' with wh_headline='Pickup queue' %}
 
 <div class="container mt-4">
 
@@ -27,16 +25,13 @@
         {% endfor %}
     {% endif %}
 
-    <p class="mb-3"><a href="{% url 'warehouse_dashboard' %}" class="text-muted small">&larr; Warehouse home</a></p>
-
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-        <h3 class="mb-0">Pickup queue</h3>
+        <p class="text-muted small mb-0">Pickup steps are created automatically from manufacturing BOM (item reservations).</p>
         <form method="GET" action="{% url 'warehouse_pickup_queue' %}" class="d-flex" style="max-width:320px;">
             <input type="text" name="q" class="form-control me-2" placeholder="Order or company..." value="{{ search_query }}">
             <button class="btn btn-primary" type="submit">Search</button>
         </form>
     </div>
-    <p class="text-muted small mb-4">Pickup steps are created automatically from manufacturing BOM (item reservations).</p>
 
     {% if rows %}
     <div class="row g-4">

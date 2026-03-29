@@ -119,6 +119,20 @@ def after_action(page, delay_ms: int) -> None:
         page.wait_for_timeout(delay_ms)
 
 
+def expand_textarea_height_extra_percent(locator, extra_percent: int) -> None:
+    """Increase textarea height by extra_percent of current size (100 => +100% => double height)."""
+    mult = 1.0 + extra_percent / 100.0
+    locator.evaluate(
+        "(el, mult) => {"
+        " const h = el.getBoundingClientRect().height || el.offsetHeight || 72;"
+        " const nh = Math.round(h * mult);"
+        " el.style.height = nh + 'px';"
+        " el.style.minHeight = nh + 'px';"
+        "}",
+        mult,
+    )
+
+
 def do_login(page, base: str, username: str, password: str, delay_ms: int) -> None:
     page.goto(f"{base}/login/", wait_until="domcontentloaded")
     after_action(page, delay_ms)
@@ -229,6 +243,10 @@ def run_tour(args: argparse.Namespace) -> None:
             after_action(page, delay_ms)
 
             reply_ta = card_loc.locator('textarea[name="chat_message"]').first
+            reply_ta.wait_for(state="visible", timeout=15000)
+            expand_textarea_height_extra_percent(reply_ta, 100)
+            after_action(page, delay_ms)
+
             deadline = time.monotonic() + args.ai_timeout_sec
             while time.monotonic() < deadline:
                 val = reply_ta.input_value()

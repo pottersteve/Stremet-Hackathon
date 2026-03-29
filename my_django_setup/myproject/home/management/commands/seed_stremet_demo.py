@@ -232,18 +232,21 @@ def _ensure_material_catalog(designer: User) -> dict[str, ItemReservation]:
 
 def _seed_stock(materials: dict[str, ItemReservation], warehouse_user: User) -> None:
     used = set(StoredItem.objects.values_list("storage_space_id", flat=True))
+    # Use every slot (100 after _ensure_storage_spaces). Previously [:80] capped total
+    # inventory and starved demo pickups: laser BOM lines need ceil(qty) units each,
+    # and multiple confirmed pickups consume DC01 quickly.
     free = list(
-        StorageSpace.objects.exclude(pk__in=used).order_by("slot_number")[:80]
+        StorageSpace.objects.exclude(pk__in=used).order_by("slot_number")
     )
     idx = 0
     year = date.today().year
     counts = {
-        "SHE-DC01-2.0-ZE": 24,
+        "SHE-DC01-2.0-ZE": 45,
         "SHE-304-1.5-2B": 18,
-        "TUB-S235-30X30X2": 40,
-        "HW-M6-A2-ASM01": 60,
-        "POW-RAL7035-EP": 30,
-        "SHE-S355MC-3.0": 20,
+        "TUB-S235-30X30X2": 17,
+        "HW-M6-A2-ASM01": 12,
+        "POW-RAL7035-EP": 4,
+        "SHE-S355MC-3.0": 4,
     }
     for sku, n in counts.items():
         ir = materials[sku]

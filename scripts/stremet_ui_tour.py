@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 """
-Stremet pitch demo: migrate, seed demo data, start Django, then drive the UI with Playwright.
+Automated UI walkthrough: migrate, seed sample data, start Django, drive the app with Playwright.
 
-See also: STREMET_DEMO_DATA.md (seed scope, demo users, STREMET_SEED_PASSWORD).
+Credentials and seed scope: STREMET_DEMO_DATA.md (STREMET_SEED_PASSWORD).
 
-Use the project virtual environment so Django, gpt4all, and Playwright match this repo:
+Use a project virtual environment:
 
   python -m venv .venv
   .venv\\Scripts\\activate          # Windows
   pip install -r requirements.txt -r requirements-dev.txt
   python -m playwright install chromium
 
-Django preloads GPT4All at startup (see home.apps). Migrate/seed/runserver may each take
-a long time on first run while the model loads; the script waits for HTTP only after
-runserver starts. Increase --server-ready-timeout if your machine is slower.
+Django preloads GPT4All at startup (see home.apps). Migrate, seed, and runserver can take
+a long time on first run while the model loads. Increase --server-ready-timeout if needed.
 """
 
 from __future__ import annotations
@@ -37,7 +36,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 MANAGE_DIR = REPO_ROOT / "my_django_setup" / "myproject"
 DEFAULT_SEED_PASSWORD = "StremetTrain2026!"
 
-# Demo users (seed_stremet_demo)
+# Accounts created by seed_stremet_demo (see STREMET_DEMO_DATA.md)
 USER_CUSTOMER = "makinen.eero"
 USER_ADMIN = "virtanen.mikko"
 USER_DESIGNER = "nieminen.laura"
@@ -108,11 +107,11 @@ def stop_server() -> None:
     _server_proc = None
 
 
-def beat_pause(label: str, interactive: bool) -> None:
-    if interactive:
+def beat_pause(label: str, args: argparse.Namespace) -> None:
+    if args.interactive:
         input(f"\n>>> {label}\n    Press Enter to continue… ")
     else:
-        time.sleep(2.5)
+        time.sleep(args.action_delay_ms / 1000.0)
 
 
 def after_action(page, delay_ms: int) -> None:
@@ -144,7 +143,7 @@ def run_tour(args: argparse.Namespace) -> None:
     base = args.base_url.rstrip("/")
     delay_ms = args.action_delay_ms
     pw = args.password or os.environ.get("STREMET_SEED_PASSWORD") or DEFAULT_SEED_PASSWORD
-    order_id = args.order_id or f"SO-2026-DEMO-{int(time.time())}"
+    order_id = args.order_id or f"SO-2026-{int(time.time())}"
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False, slow_mo=args.slow_mo)
@@ -152,13 +151,14 @@ def run_tour(args: argparse.Namespace) -> None:
         page = context.new_page()
 
         try:
-            # --- Beat 1: customer login + quote page ---
+            # Customer: login and quote request
+            page.goto(f"{base}/login/", wait_until="domcontentloaded")
+            beat_pause("Login form", args)
             do_login(page, base, USER_CUSTOMER, pw, delay_ms)
             page.wait_for_url(re.compile(r".*/request-quote/.*"), timeout=15000)
-            beat_pause("Customer: quote request form (presenter can introduce the portal)", args.interactive)
+            beat_pause("Quote request form", args)
             after_action(page, delay_ms)
 
-            # --- Beat 2: fill quote ---
             page.locator('input[name="order_id"]').fill(order_id)
             after_action(page, delay_ms)
             page.locator('input[name="company_name"]').fill(CLIENT_COMPANY)
@@ -175,16 +175,18 @@ def run_tour(args: argparse.Namespace) -> None:
             after_action(page, delay_ms)
             page.locator('input[name="quantity_tons"]').fill("0.5")
             after_action(page, delay_ms)
-            page.locator('textarea[name="admin_notes"]').fill("Pitch demo quote — automated tour.")
+            page.locator('textarea[name="admin_notes"]').fill(
+                "Bracket set for cab frame revision 2026-Q2. Match existing powder RAL7035 batch from last delivery."
+            )
             after_action(page, delay_ms)
 
-            beat_pause("Customer: about to submit the quote request", args.interactive)
+            beat_pause("Submit quote request", args)
             page.locator('button[name="create_customer_order"]').click()
             page.wait_for_load_state("networkidle")
             after_action(page, delay_ms)
-            beat_pause("Customer: quote submitted (success message)", args.interactive)
+            beat_pause("Quote confirmation", args)
 
-            # --- Beat 3: customer portal + chat ---
+            # Customer portal: track order and chat
             page.goto(f"{base}/customer/", wait_until="domcontentloaded")
             after_action(page, delay_ms)
             page.locator('input[name="order_id"]').fill(order_id)
@@ -192,30 +194,29 @@ def run_tour(args: argparse.Namespace) -> None:
             page.get_by_role("button", name=re.compile(r"^Track$")).click()
             page.wait_for_load_state("networkidle")
             after_action(page, delay_ms)
-            beat_pause("Customer: order tracking and progress area", args.interactive)
+            beat_pause("Order status", args)
 
             page.get_by_role("button", name=re.compile(r"Live Support")).click()
             after_action(page, delay_ms)
             page.locator("#chat-message-input").fill(
-                "Hello — this is our pitch demo. When can we expect feedback on this quote?"
+                "Hi, could you confirm lead time for this order? We need parts on site by month-end if possible."
             )
             after_action(page, delay_ms)
             page.locator("#send-chat-btn").click()
-            page.wait_for_timeout(800)
             after_action(page, delay_ms)
-            beat_pause("Customer: support message sent", args.interactive)
+            beat_pause("Message sent", args)
 
-            # --- Beat 4: admin support + AI ---
+            # Support: AI-assisted reply
             do_logout(page, base, delay_ms)
             do_login(page, base, USER_ADMIN, pw, delay_ms)
             page.goto(f"{base}/support/", wait_until="domcontentloaded")
             page.wait_for_load_state("networkidle")
             after_action(page, delay_ms)
-            beat_pause("Support hub: message thread for the demo order", args.interactive)
+            beat_pause("Support inbox", args)
 
             msg_cards = page.locator(".message-card").filter(has_text=order_id)
             if msg_cards.count() == 0:
-                raise RuntimeError(f"No support thread found for order {order_id!r}.")
+                raise RuntimeError(f"No thread found for order {order_id!r}.")
             card_loc = msg_cards.first
             card_loc.get_by_role(
                 "button", name=re.compile(r"Suggest AI", re.I)
@@ -231,12 +232,12 @@ def run_tour(args: argparse.Namespace) -> None:
                 page.wait_for_timeout(500)
             else:
                 print(
-                    "\n[warn] AI suggestion did not fill in time "
-                    f"({args.ai_timeout_sec}s). Is GPT4All running? Using fallback reply text.\n",
+                    "\n[warn] AI suggestion did not complete within "
+                    f"{args.ai_timeout_sec}s. Check GPT4All; using fallback reply text.\n",
                     file=sys.stderr,
                 )
 
-            beat_pause("Support: AI draft in reply box (or empty if model offline)", args.interactive)
+            beat_pause("Support reply draft", args)
             reply_ta.fill(
                 reply_ta.input_value().strip()
                 or "Thank you for your message. Our team is reviewing your quote and will respond shortly."
@@ -245,9 +246,9 @@ def run_tour(args: argparse.Namespace) -> None:
             card_loc.get_by_role("button", name=re.compile(r"^Send Reply$")).click()
             page.wait_for_load_state("networkidle")
             after_action(page, delay_ms)
-            beat_pause("Support: reply sent", args.interactive)
+            beat_pause("Reply sent", args)
 
-            # --- Beat 5: designer ---
+            # Designer: plan and BOM
             do_logout(page, base, delay_ms)
             do_login(page, base, USER_DESIGNER, pw, delay_ms)
             page.goto(f"{base}/designer/", wait_until="domcontentloaded")
@@ -258,15 +259,15 @@ def run_tour(args: argparse.Namespace) -> None:
             order_card.get_by_role("link", name=re.compile(r"^Open Plan$")).click()
             page.wait_for_load_state("networkidle")
             after_action(page, delay_ms)
-            beat_pause("Designer: manufacturing plan editor", args.interactive)
+            beat_pause("Manufacturing plan", args)
 
             page.locator('button[data-bs-target="#addStepModal"]').click()
             after_action(page, delay_ms)
             page.locator("#addStepModal").locator('input[name="name"]').fill(
-                "Laser cut — demo panel"
+                "Laser cut — cab bracket blanks"
             )
             after_action(page, delay_ms)
-            beat_pause("Designer: about to add a manufacturing step", args.interactive)
+            beat_pause("Add manufacturing step", args)
             page.locator("#addStepModal").get_by_role(
                 "button", name=re.compile(r"^Add Step$")
             ).click()
@@ -280,7 +281,7 @@ def run_tour(args: argparse.Namespace) -> None:
             ).click()
             page.wait_for_load_state("networkidle")
             after_action(page, delay_ms)
-            beat_pause("Designer: step details — add BOM and optional quality check", args.interactive)
+            beat_pause("Step details and BOM", args)
 
             mat_sel = page.locator("#id_material-0-item_reservation")
             mat_sel.wait_for(state="visible", timeout=10000)
@@ -299,7 +300,7 @@ def run_tour(args: argparse.Namespace) -> None:
             page.locator("#id_quality-0-expected_result").fill("No sharp burrs")
             after_action(page, delay_ms)
 
-            beat_pause("Designer: saving step (creates warehouse pickup from BOM)", args.interactive)
+            beat_pause("Save step", args)
             page.get_by_role("button", name=re.compile(r"^Save Step$")).click()
             page.wait_for_load_state("networkidle")
             after_action(page, delay_ms)
@@ -312,33 +313,33 @@ def run_tour(args: argparse.Namespace) -> None:
                 "ready"
             )
             after_action(page, delay_ms)
-            beat_pause("Designer: plan set to Ready — save metadata", args.interactive)
+            beat_pause("Set plan to Ready", args)
             page.get_by_role("button", name=re.compile(r"Save plan")).click()
             page.wait_for_load_state("networkidle")
             after_action(page, delay_ms)
-            beat_pause("Designer: plan saved — manufacturer queue will unlock", args.interactive)
+            beat_pause("Plan saved", args)
 
-            # --- Beat 6: warehouse pickup ---
+            # Warehouse pickup
             do_logout(page, base, delay_ms)
             do_login(page, base, USER_WAREHOUSE, pw, delay_ms)
             page.goto(f"{base}/warehouse/pickup/", wait_until="domcontentloaded")
             page.wait_for_load_state("networkidle")
             after_action(page, delay_ms)
-            beat_pause("Warehouse: pickup queue", args.interactive)
+            beat_pause("Pickup queue", args)
 
             wh_card = page.locator(".wh-card").filter(has_text=order_id).first
             wh_card.get_by_role("link", name=re.compile(r"Open pickup")).click()
             page.wait_for_load_state("networkidle")
             after_action(page, delay_ms)
-            beat_pause("Warehouse: confirm pickup (consumes stock)", args.interactive)
+            beat_pause("Confirm pickup", args)
             page.get_by_role(
                 "button", name=re.compile(r"Confirm pickup", re.I)
             ).click()
             page.wait_for_load_state("networkidle")
             after_action(page, delay_ms)
-            beat_pause("Warehouse: pickup complete", args.interactive)
+            beat_pause("Pickup done", args)
 
-            # --- Beat 7: manufacturer ---
+            # Manufacturer
             do_logout(page, base, delay_ms)
             do_login(page, base, USER_MANUFACTURER, pw, delay_ms)
             page.goto(f"{base}/manufacturer/", wait_until="domcontentloaded")
@@ -349,13 +350,13 @@ def run_tour(args: argparse.Namespace) -> None:
             page.get_by_role("button", name=re.compile(r"^Search$")).click()
             page.wait_for_load_state("networkidle")
             after_action(page, delay_ms)
-            beat_pause("Manufacturer: production queue", args.interactive)
+            beat_pause("Production queue", args)
 
             mfg_card = page.locator(".mfg-order-card").filter(has_text=order_id).first
             mfg_card.get_by_role("link", name=re.compile(r"Open step")).click()
             page.wait_for_load_state("networkidle")
             after_action(page, delay_ms)
-            beat_pause("Manufacturer: step execution and quality checklist", args.interactive)
+            beat_pause("Shop floor step", args)
 
             page.locator("#id_status").select_option("completed")
             after_action(page, delay_ms)
@@ -366,9 +367,9 @@ def run_tour(args: argparse.Namespace) -> None:
             page.get_by_role("button", name=re.compile(r"Save progress")).click()
             page.wait_for_load_state("networkidle")
             after_action(page, delay_ms)
-            beat_pause("Manufacturer: progress and quality saved", args.interactive)
+            beat_pause("Production saved", args)
 
-            # --- Beat 8: customer progress (guest) ---
+            # Customer: check progress again
             do_logout(page, base, delay_ms)
             page.goto(f"{base}/customer/", wait_until="domcontentloaded")
             after_action(page, delay_ms)
@@ -377,16 +378,18 @@ def run_tour(args: argparse.Namespace) -> None:
             page.get_by_role("button", name=re.compile(r"^Track$")).click()
             page.wait_for_load_state("networkidle")
             after_action(page, delay_ms)
-            beat_pause("Customer: final progress view — end of tour", args.interactive)
+            beat_pause("Updated order status", args)
 
-            print(f"\nDemo order id (for reference): {order_id}\n")
+            print(f"\nOrder id: {order_id}\n")
         finally:
             context.close()
             browser.close()
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Stremet pitch tour (Playwright + Django seed/server).")
+    parser = argparse.ArgumentParser(
+        description="Stremet UI walkthrough: Playwright + migrate, seed, runserver.",
+    )
     parser.add_argument(
         "--base-url",
         default="",
@@ -408,7 +411,7 @@ def main() -> int:
     parser.add_argument(
         "--order-id",
         default="",
-        help="Quote order id (default: SO-2026-DEMO-<unix_ts>)",
+        help="Quote order id (default: SO-2026-<unix_ts>)",
     )
     parser.add_argument(
         "--delivery-date",
@@ -418,19 +421,19 @@ def main() -> int:
     parser.add_argument(
         "--password",
         default="",
-        help="Login password for all demo users (default: STREMET_SEED_PASSWORD env or built-in demo password)",
+        help="Password for seeded users (STREMET_SEED_PASSWORD env or built-in default)",
     )
     parser.add_argument(
         "--action-delay-ms",
         type=int,
-        default=1000,
-        help="Pause after each simulated UI action (default 1000 ms)",
+        default=250,
+        help="Pause after each automated UI action and between beats when --no-pause (default 250 ms)",
     )
     parser.add_argument(
         "--slow-mo",
         type=int,
-        default=350,
-        help="Playwright slow_mo in ms (default 350)",
+        default=0,
+        help="Playwright slow_mo in ms (default 0)",
     )
     parser.add_argument(
         "--ai-timeout-sec",
@@ -442,7 +445,7 @@ def main() -> int:
         "--no-pause",
         action="store_true",
         dest="no_pause",
-        help="Use short automatic delays instead of Press Enter between beats",
+        help="No Enter between steps; use --action-delay-ms between beats",
     )
     parser.add_argument(
         "--server-ready-timeout",
@@ -451,7 +454,7 @@ def main() -> int:
         metavar="SEC",
         help=(
             "Max seconds to wait for HTTP after runserver starts "
-            "(default 900; allow time for GPT4All preload at startup)"
+            "(default 900; GPT4All preload at startup)"
         ),
     )
     args = parser.parse_args()
@@ -481,13 +484,13 @@ def main() -> int:
             run_manage("migrate", "--noinput")
 
         if not args.skip_seed:
-            print("Seeding demo data (seed_stremet_demo)…")
+            print("Running seed_stremet_demo…")
             run_manage("seed_stremet_demo")
 
         if not args.no_server:
             print(
-                f"Starting Django runserver on {args.host}:{args.port}… "
-                f"(GPT4All preloads at startup; waiting up to {args.server_ready_timeout:.0f}s for HTTP)…"
+                f"Starting runserver on {args.host}:{args.port} "
+                f"(waiting up to {args.server_ready_timeout:.0f}s for HTTP after GPT4All startup)…"
             )
             _server_proc = start_runserver(args.host, args.port)
             wait_for_http_ok(
@@ -496,7 +499,7 @@ def main() -> int:
             )
             print("Server is up.")
         else:
-            print(f"Using existing server at {args.base_url} — verifying…")
+            print(f"Checking server at {args.base_url}…")
             wait_for_http_ok(
                 f"{args.base_url.rstrip('/')}/",
                 timeout_sec=args.server_ready_timeout,

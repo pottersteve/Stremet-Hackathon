@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 from django.contrib.auth.models import User
 
-from home.models import Client, Order, OrderItem, UserProfile
+from home.models import Client, Order, UserProfile
 
 
 @pytest.fixture
@@ -19,6 +19,7 @@ def django_user(db):
 
 @pytest.fixture
 def order_with_item(db):
+    """Order for chat / portal tests (legacy name; no OrderItem)."""
     client = Client.objects.create(email="client@example.com", company_name="ACME")
     order = Order.objects.create(
         order_id="TEST-ORDER-1",
@@ -28,5 +29,4 @@ def order_with_item(db):
         dimensions="10mm x 20mm x 30mm",
         quantity_tons=1,
     )
-    item = OrderItem.objects.create(order=order, item_name="Widget")
-    return order, item
+    return order, None

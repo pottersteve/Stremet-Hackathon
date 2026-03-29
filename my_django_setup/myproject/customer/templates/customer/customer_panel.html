@@ -52,55 +52,33 @@
 
         {% if order %}
             <div class="item-card border-top border-4 border-primary">
-                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 flex-wrap gap-2">
                     <h4 class="mb-0">Order: <span class="text-primary">{{ order.order_id }}</span></h4>
                     <span class="badge bg-success fs-6 px-3 py-2">{{ order.get_status_display }}</span>
                 </div>
 
-                {% for item in order.items.all %}
-                    <h5 class="mb-2 mt-5 text-center text-muted border-bottom pb-2">Item #{{ forloop.counter }}: {{ item.item_name }} (Qty: {{ item.quantity }})</h5>
-                    
-                    <div class="flowchart-container">
-                        
-                        <div class="process-step">
-                            <div class="process-box {% if item.step_1_programming %}done{% endif %}" data-step-name="Programming / Designing (Item #{{ forloop.counter }})">
-                                <div class="step-label {% if item.step_1_programming %}text-white{% endif %}">Programming /<br>Designing</div>
-                                <div class="step-tooltip">CAD blueprints converted to CNC machine code.</div>
+                {% if progress %}
+                    {% if progress.has_mfg_steps and progress.step_percent is not None %}
+                        <p class="small text-muted mb-1">Production progress (manufacturing steps). Green nodes are completed or skipped.</p>
+                        <div class="progress mb-2" style="height: 26px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ progress.step_percent }}%;" aria-valuenow="{{ progress.step_percent }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ progress.done_count }} / {{ progress.total_count }} steps
                             </div>
                         </div>
-
-                        <div class="process-step">
-                            <div class="process-box {% if item.step_2_cutting %}done{% endif %}" data-step-name="Cutting 2D (Item #{{ forloop.counter }})">
-                                <div class="step-label {% if item.step_2_cutting %}text-white{% endif %}">Cutting<br>(2D)</div>
-                                <div class="step-tooltip">Laser or plasma cutting of the raw 2D steel sheet.</div>
+                    {% else %}
+                        <p class="text-muted small mb-1">No manufacturing steps are defined on your production plan yet, or the plan is still being prepared.</p>
+                        <p class="small text-muted mb-1">Order stage (high level)</p>
+                        <div class="progress mb-4" style="height: 20px;">
+                            <div class="progress-bar bg-secondary" role="progressbar" style="width: {{ progress.fallback_stage_percent }}%;" aria-valuenow="{{ progress.fallback_stage_percent }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ progress.fallback_stage_percent }}%
                             </div>
                         </div>
+                    {% endif %}
 
-                        <div class="process-step">
-                            <div class="process-box {% if item.step_3_forming %}done{% endif %}" data-step-name="Forming & Bending 3D (Item #{{ forloop.counter }})">
-                                <div class="step-label {% if item.step_3_forming %}text-white{% endif %}">Forming & Bending<br>(3D)</div>
-                                <div class="step-tooltip">Press brake operations to fold and bend flat profiles.</div>
-                            </div>
-                        </div>
-
-                        <div class="process-step">
-                            <div class="process-box {% if item.step_4_joining %}done{% endif %}" data-step-name="Joining & Assembling (Item #{{ forloop.counter }})">
-                                <div class="step-label {% if item.step_4_joining %}text-white{% endif %}">Joining &<br>Assembling</div>
-                                <div class="step-tooltip">TIG/MIG welding, riveting, or bolting multiple formed parts together.</div>
-                            </div>
-                        </div>
-
-                        <div class="process-step">
-                            <div class="process-box {% if item.step_5_delivery %}done{% endif %}" data-step-name="Delivery (Item #{{ forloop.counter }})">
-                                <div class="step-label {% if item.step_5_delivery %}text-white{% endif %}">Delivery /<br>3rd Party</div>
-                                <div class="step-tooltip">Sent out for powder coating, galvanizing, or prepared for final shipping.</div>
-                            </div>
-                        </div>
-
-                    </div>
-                {% empty %}
-                    <div class="alert alert-warning shadow-sm">No individual items have been logged for this order yet.</div>
-                {% endfor %}
+                    {{ progress.graph|json_script:"customer-graph-data" }}
+                    <div id="customer-graph-canvas" class="customer-graph-canvas border rounded bg-light mb-3"></div>
+                    <p class="small text-muted">Click a step in the diagram to mention it in support chat.</p>
+                {% endif %}
             </div>
         {% endif %}
     </div>
@@ -119,7 +97,7 @@
               
               <div class="mb-3 d-flex flex-column align-items-start">
                   <div class="p-3 rounded-3" style="background-color: #e9ecef; color: #333; max-width: 85%; border-radius: 15px 15px 15px 0 !important;">
-                      Hello! Click any box on your flowchart to ask a specific question, or type a general message below.
+                      Hello! Click a step in the production diagram to set the topic for your message, or type a general question below.
                   </div>
               </div>
               
@@ -193,14 +171,14 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         
-        // --- 1. Animation & Context Highlighting ---
+        // --- 1. Chat sidebar & production graph (read-only) ---
         const chatSidebar = document.getElementById('chatSidebar');
         const mainWrapper = document.getElementById('main-wrapper');
-        const processBoxes = document.querySelectorAll('.process-box');
         const contextBadge = document.getElementById('chat-context-badge');
         const contextText = document.getElementById('chat-context-text');
         const clearContextBtn = document.getElementById('clear-context-btn');
@@ -209,20 +187,44 @@
         chatSidebar.addEventListener('show.bs.offcanvas', () => mainWrapper.classList.add('chat-open'));
         chatSidebar.addEventListener('hide.bs.offcanvas', () => mainWrapper.classList.remove('chat-open'));
 
-        processBoxes.forEach(box => {
-            box.addEventListener('click', function() {
-                processBoxes.forEach(b => b.classList.remove('selected-for-chat'));
-                this.classList.add('selected-for-chat');
-                contextText.textContent = this.getAttribute('data-step-name');
-                contextBadge.classList.remove('d-none');
-                if (!mainWrapper.classList.contains('chat-open')) bsOffcanvas.show();
-            });
-        });
+        var graphScript = document.getElementById('customer-graph-data');
+        var customerNetwork = null;
+        if (graphScript && typeof vis !== 'undefined') {
+            try {
+                var raw = JSON.parse(graphScript.textContent);
+                var container = document.getElementById('customer-graph-canvas');
+                if (container && raw.nodes && raw.nodes.length) {
+                    var nodesDs = new vis.DataSet(raw.nodes);
+                    var edgesDs = new vis.DataSet(raw.edges);
+                    customerNetwork = new vis.Network(container, { nodes: nodesDs, edges: edgesDs }, {
+                        nodes: { shape: 'box', margin: 10, font: { size: 14 } },
+                        edges: { arrows: { to: { enabled: true, scaleFactor: 0.8 } }, smooth: { type: 'cubicBezier', roundness: 0.4 } },
+                        physics: { enabled: false },
+                        interaction: { dragNodes: false, dragView: true, zoomView: true }
+                    });
+                    customerNetwork.on('click', function (params) {
+                        if (params.nodes.length) {
+                            var n = nodesDs.get(params.nodes[0]);
+                            if (n && n.label) {
+                                contextText.textContent = n.label;
+                                contextBadge.classList.remove('d-none');
+                                if (!mainWrapper.classList.contains('chat-open')) bsOffcanvas.show();
+                            }
+                        }
+                    });
+                    setTimeout(function () {
+                        try { customerNetwork.fit({ animation: false, padding: 36 }); } catch (e) {}
+                    }, 0);
+                } else if (container) {
+                    container.style.minHeight = '120px';
+                    container.innerHTML = '<p class="text-muted small p-3 mb-0">No production diagram to show yet.</p>';
+                }
+            } catch (e) { /* ignore */ }
+        }
 
         clearContextBtn.addEventListener('click', function() {
             contextBadge.classList.add('d-none');
             contextText.textContent = "";
-            processBoxes.forEach(b => b.classList.remove('selected-for-chat'));
         });
 
         const fileInput = document.getElementById('chat-file-upload');

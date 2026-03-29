@@ -1,8 +1,4 @@
 import json
-import os
-import sys
-import threading
-import time
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, logout
@@ -19,126 +15,17 @@ from django.shortcuts import get_object_or_404, redirect, render
 from .auth_utils import ensure_user_profile, get_profile_role
 from .models import ChatMessage, Client, Order, OrderImage
 from .services import (
-    apply_flowchart_step_update,
     create_chat_message_from_request,
     create_order_from_post,
+    customer_order_progress_context,
     lookup_order_with_chats,
-    parse_flowchart_status_post,
+    manufacturing_steps_summary_lines,
 )
-
-from gpt4all import GPT4All
-
-
-# Grounded in Stremet Oy (https://stremet.fi); output must read as a real Stremet support email.
-STREMET_SUPPORT_SYSTEM_PROMPT = """You write AS Stremet customer support sending the next message to the client.
-
-Stremet (Stremet Oy) is a Finnish industrial sheet-metal and steel partner (since 1995, Salo region): punching, laser cutting, bending, welding, surface treatment, assembly, design support. Values: quality, reliable lead times, sustainability, long-term industrial relationships.
-
-You receive structured facts from our database (order, customer contact, full message thread, and who is replying on our side). Use those facts naturally—greet and refer using real names, company, and order id when provided. Do not invent exact dates, prices, tonnages, or legal commitments that are not in the data; if something is missing, say you will confirm with production/sales and follow up.
-
-Tone: warm, professional, calm, concise. If the customer is upset, acknowledge it briefly and stay constructive. No harassment, discrimination, or abuse. Refuse harmful or illegal requests briefly and redirect to legitimate order support.
-
-CRITICAL OUTPUT RULES:
-- Your entire output is ONLY the outbound reply text the customer will read (like an email body). 
-- Do NOT prefix with assistant chatter: no "Sure!", "Here is a draft", "You could write", "Below is", no markdown code fences, no bullet list of instructions to yourself.
-- Do NOT role-play explaining what you are doing. Start as the support person would (e.g. greeting or direct answer).
-- Use real names/sign-offs consistent with the "You are replying as" section when appropriate (e.g. first name + Stremet / team).
-- Match the customer's language when the thread is clearly in one language; otherwise use clear professional English.
-
-Follow these rules on every response."""
-
-
-def _load_gpt4all_model():
-    """
-    Load Orca Mini with GPU when possible.
-
-    Override with env:
-      GPT4ALL_DEVICE=cuda|kompute|cpu|gpu  (gpu → try CUDA then Kompute on Windows/Linux)
-      GPT4ALL_NGL=100  (layers offloaded to GPU; Vulkan/CUDA)
-
-    On macOS, default None uses Metal on Apple Silicon (per GPT4All).
-    """
-    common_kw = dict(
-        model_name="orca-mini-3b-gguf2-q4_0.gguf",
-        n_ctx=2048,
-        n_threads=os.cpu_count() or 4,
-    )
-    ngl = int(os.environ.get("GPT4ALL_NGL", "100"))
-    override = os.environ.get("GPT4ALL_DEVICE", "").strip()
-    if override.lower() == "gpu" and sys.platform != "darwin":
-        # On Windows/Linux, GPT4All maps "gpu" inconsistently; use CUDA → Kompute auto-detect.
-        override = ""
-
-    if override.lower() == "cpu":
-        print("Loading AI Model (CPU only; GPT4ALL_DEVICE=cpu)...")
-        return GPT4All(**common_kw, device="cpu")
-
-    if override:
-        print(f"Loading AI Model (GPT4ALL_DEVICE={override!r})...")
-        kwargs = {**common_kw, "device": override}
-        if override.lower() != "cpu":
-            kwargs["ngl"] = ngl
-        return GPT4All(**kwargs)
-
-    if sys.platform == "darwin":
-        try:
-            print("Loading AI Model (default backend; Metal on Apple Silicon)...")
-            return GPT4All(**common_kw, ngl=ngl)
-        except Exception as e:
-            print(f"GPU/default backend failed: {e}")
-        print("Loading AI Model (CPU fallback)...")
-        return GPT4All(**common_kw, device="cpu")
-
-    for dev, label in (("cuda", "NVIDIA CUDA"), ("kompute", "Kompute (Vulkan GPU)")):
-        try:
-            print(f"Loading AI Model (trying {label})...")
-            return GPT4All(**common_kw, device=dev, ngl=ngl)
-        except Exception as e:
-            print(f"{label} unavailable: {e}")
-    print("Loading AI Model (CPU fallback)...")
-    return GPT4All(**common_kw, device="cpu")
-
-
-try:
-    ai_model = _load_gpt4all_model()
-    print("AI Model loaded successfully!")
-except Exception as e:
-    print(f"Failed to load AI: {e}")
-    ai_model = None
-
-# GPT4All instances are not safe for concurrent generate(); serialize access.
-_ai_generate_lock = threading.Lock()
-
-
-def _warmup_ai_model_delayed():
-    """Prime llama runtime after a short delay so the server can bind first."""
-    if ai_model is None:
-        return
-    time.sleep(1.0)
-    try:
-        with _ai_generate_lock:
-            with ai_model.chat_session(system_prompt=STREMET_SUPPORT_SYSTEM_PROMPT):
-                # One greedy token warms the same path as live streaming.
-                for _ in ai_model.generate(
-                    "ok",
-                    max_tokens=1,
-                    temp=0.0,
-                    top_k=1,
-                    top_p=1.0,
-                    streaming=True,
-                    n_batch=128,
-                ):
-                    break
-    except Exception as exc:
-        print(f"AI warm-up skipped: {exc}")
-
-
-if ai_model is not None:
-    threading.Thread(
-        target=_warmup_ai_model_delayed,
-        name="gpt4all-warmup",
-        daemon=True,
-    ).start()
+from .gpt4all_service import (
+    STREMET_SUPPORT_SYSTEM_PROMPT,
+    get_ai_generate_lock,
+    get_ai_model,
+)
 
 
 def _user_is_support_staff(user):
@@ -219,14 +106,7 @@ def _format_order_facts(order):
     lines.append(f"Client email (CRM): {order.client.email}")
     if order.client.name:
         lines.append(f"Client contact name: {order.client.name}")
-    items = list(order.items.all()[:15])
-    if items:
-        lines.append("Line items:")
-        for it in items:
-            lines.append(
-                f"  - {it.item_name} × {it.quantity} "
-                f"(shop floor status: {it.current_status})"
-            )
+    lines.extend(manufacturing_steps_summary_lines(order))
     return "\n".join(lines)
 
 
@@ -310,6 +190,7 @@ def generate_ai_suggestion(request):
             content_type="text/plain; charset=utf-8",
         )
 
+    ai_model = get_ai_model()
     if not ai_model:
         return HttpResponse(
             "AI model is offline or loading.",
@@ -340,7 +221,7 @@ def generate_ai_suggestion(request):
 
     def token_stream():
         try:
-            with _ai_generate_lock:
+            with get_ai_generate_lock():
                 with ai_model.chat_session(system_prompt=STREMET_SUPPORT_SYSTEM_PROMPT):
                     stream = ai_model.generate(
                         user_prompt,
@@ -512,16 +393,23 @@ def customer_panel(request):
     """View for Customers to track orders via Order ID (same as customer app; URL name may resolve here)."""
     order = None
     chat_msgs = []
+    progress = None
     if request.method == "POST":
         order_id = request.POST.get("order_id")
         order, chat_msgs = lookup_order_with_chats(order_id)
         if order is None and order_id:
             messages.error(request, f"Order ID '{order_id}' could not be found.")
+        elif order is not None:
+            progress = customer_order_progress_context(order)
 
     return render(
         request,
         "customer/customer_panel.html",
-        {"order": order, "chat_msgs": chat_msgs},
+        {
+            "order": order,
+            "chat_msgs": chat_msgs,
+            "progress": progress,
+        },
     )
 
 
@@ -616,25 +504,6 @@ def staff_dashboard(request):
                 messages.error(request, f"Order ID '{search_id}' could not be found.")
 
     return render(request, "home/unified_staff_panel.html", context)
-
-
-@login_required(login_url="login")
-def update_item_status(request):
-    """Hidden endpoint to update the database via Javascript AJAX."""
-    if request.method != "POST":
-        return JsonResponse({"success": False, "error": "Invalid request"})
-
-    try:
-        parsed = parse_flowchart_status_post(request.body)
-    except (ValueError, TypeError, json.JSONDecodeError):
-        return JsonResponse({"success": False, "error": "Invalid JSON or payload"})
-
-    err = apply_flowchart_step_update(
-        parsed["item_id"], parsed["step_number"], parsed["is_done"]
-    )
-    if err:
-        return JsonResponse({"success": False, "error": err})
-    return JsonResponse({"success": True})
 
 
 @login_required(login_url='login')

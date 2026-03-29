@@ -1,13 +1,14 @@
-import json
 from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
+from django.db.models import Prefetch
 from django.utils.dateformat import format
 
+from designer.models import ManufacturingPlan, ManufacturingStep
 from designer.services.plans import get_or_create_plan_for_order
 
-from .models import ChatMessage, Client, Order, OrderImage, OrderItem
+from .models import ChatMessage, Client, Order, OrderImage
 
 
 def create_order_from_post(request):
@@ -85,42 +86,141 @@ def lookup_order_with_chats(order_id):
         return None, []
 
 
-def apply_flowchart_step_update(item_id, step_number, is_done):
-    """
-    Update a single flowchart step on an OrderItem.
-    Returns None on success or an error string.
-    """
+def _order_fallback_stage_percent(order):
+    stages = [c[0] for c in Order.STAGE_CHOICES]
     try:
-        item = OrderItem.objects.get(id=item_id)
-    except OrderItem.DoesNotExist:
-        return "Item not found."
-
-    if step_number == 1:
-        item.step_1_programming = is_done
-    elif step_number == 2:
-        item.step_2_cutting = is_done
-    elif step_number == 3:
-        item.step_3_forming = is_done
-    elif step_number == 4:
-        item.step_4_joining = is_done
-    elif step_number == 5:
-        item.step_5_delivery = is_done
-    else:
-        return "Invalid step."
-
-    item.save()
-    return None
+        idx = stages.index(order.status)
+        return int(100 * (idx + 1) / len(stages))
+    except ValueError:
+        return 0
 
 
-def parse_flowchart_status_post(body):
-    """Parse JSON body for flowchart AJAX. Returns dict or raises ValueError/JSONDecodeError."""
-    data = json.loads(body)
-    item_id = data.get("item_id")
-    step_number = data.get("step")
-    is_done = data.get("is_done")
-    if item_id is None or step_number is None or is_done is None:
-        raise ValueError("Missing fields")
-    return {"item_id": item_id, "step_number": step_number, "is_done": is_done}
+def _vis_node_color(status):
+    if status in ("completed", "skipped"):
+        return {
+            "background": "#198754",
+            "border": "#146c43",
+            "highlight": {"background": "#20c997", "border": "#198754"},
+        }
+    if status == "in_progress":
+        return {
+            "background": "#fd7e14",
+            "border": "#ca6510",
+            "highlight": {"background": "#ffc107", "border": "#fd7e14"},
+        }
+    return {
+        "background": "#6c757d",
+        "border": "#565e64",
+        "highlight": {"background": "#adb5bd", "border": "#6c757d"},
+    }
+
+
+def customer_order_progress_context(order):
+    """
+    Manufacturing steps only (no warehouse_pickup). For customer vis-network + progress bar.
+    """
+    fallback = _order_fallback_stage_percent(order)
+    plan = (
+        ManufacturingPlan.objects.filter(order_id=order.pk)
+        .prefetch_related(
+            Prefetch(
+                "steps",
+                queryset=ManufacturingStep.objects.order_by(
+                    "sequence_order", "pk"
+                ).prefetch_related("outgoing_dependencies__to_step"),
+            )
+        )
+        .first()
+    )
+
+    if not plan:
+        empty_graph = {"nodes": [], "edges": []}
+        return {
+            "has_plan": False,
+            "has_mfg_steps": False,
+            "nodes": [],
+            "edges": [],
+            "done_count": 0,
+            "total_count": 0,
+            "step_percent": None,
+            "fallback_stage_percent": fallback,
+            "graph": empty_graph,
+        }
+
+    mfg_steps = [
+        s
+        for s in plan.steps.all()
+        if s.step_kind == ManufacturingStep.STEP_KIND_MANUFACTURING
+    ]
+    mfg_ids = {s.pk for s in mfg_steps}
+
+    nodes = []
+    for s in mfg_steps:
+        nodes.append(
+            {
+                "id": str(s.pk),
+                "label": s.name,
+                "x": float(s.position_x),
+                "y": float(s.position_y),
+                "color": _vis_node_color(s.status),
+                "font": {"color": "#ffffff"},
+                "title": f"{s.name}\nStatus: {s.get_status_display()}",
+            }
+        )
+
+    edges = []
+    seen = set()
+    for s in mfg_steps:
+        for dep in s.outgoing_dependencies.all():
+            tid = dep.to_step_id
+            if tid in mfg_ids:
+                key = (s.pk, tid)
+                if key not in seen:
+                    seen.add(key)
+                    edges.append({"from": str(s.pk), "to": str(tid)})
+
+    done_count = sum(
+        1 for s in mfg_steps if s.status in ("completed", "skipped")
+    )
+    total_count = len(mfg_steps)
+    step_percent = (
+        int(100 * done_count / total_count) if total_count else None
+    )
+    graph = {"nodes": nodes, "edges": edges}
+
+    return {
+        "has_plan": True,
+        "has_mfg_steps": total_count > 0,
+        "nodes": nodes,
+        "edges": edges,
+        "done_count": done_count,
+        "total_count": total_count,
+        "step_percent": step_percent,
+        "fallback_stage_percent": fallback,
+        "graph": graph,
+    }
+
+
+def manufacturing_steps_summary_lines(order):
+    """Human-readable manufacturing step lines for AI context (no warehouse steps)."""
+    plan = (
+        ManufacturingPlan.objects.filter(order_id=order.pk)
+        .prefetch_related("steps")
+        .first()
+    )
+    if not plan:
+        return ["Manufacturing plan: (none yet)."]
+    mfg = [
+        s
+        for s in plan.steps.all()
+        if s.step_kind == ManufacturingStep.STEP_KIND_MANUFACTURING
+    ]
+    if not mfg:
+        return ["Manufacturing plan: no manufacturing steps defined yet."]
+    lines = ["Production steps (manufacturing):"]
+    for s in sorted(mfg, key=lambda x: (x.sequence_order, x.pk)):
+        lines.append(f"  - {s.name}: {s.get_status_display()}")
+    return lines
 
 
 def create_chat_message_from_request(request):

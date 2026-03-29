@@ -7,7 +7,6 @@ from .models import (
     Client,
     Order,
     OrderImage,
-    OrderItem,
     OrderModificationRequest,
     UserProfile,
 )
@@ -15,12 +14,6 @@ from .models import (
 
 class OrderImageInline(admin.TabularInline):
     model = OrderImage
-    extra = 1
-
-
-# --- ADD THIS NEW INLINE FOR ITEMS ---
-class OrderItemInline(admin.StackedInline):
-    model = OrderItem
     extra = 1
 
 
@@ -36,8 +29,7 @@ class OrderAdmin(admin.ModelAdmin):
     )
     list_filter = ("status", "steel_grade", "heat_treatment")
     search_fields = ("order_id", "client__company_name")
-    # Add OrderItemInline to the list below!
-    inlines = [OrderItemInline, OrderImageInline]
+    inlines = [OrderImageInline]
 
 
 @admin.register(Client)

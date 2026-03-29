@@ -20,13 +20,15 @@
             transform: translateY(-5px);
             box-shadow: 0 10px 20px rgba(0,0,0,0.15);
         }
-        
-        /* Role-specific color themes */
+
         .admin-bg { background-color: #2c3e50; color: white; }
-        .roles-bg { background-color: #a85c57; color: white; }
-        .othersIDK { background-color: #2980b9; color: white; }
+        .mfg-bg { background-color: #a85c57; color: white; }
+        .designer-bg { background-color: #34495e; color: white; }
+        .warehouse-bg { background-color: #6b7c59; color: white; }
+        .customer-bg { background-color: #2980b9; color: white; }
+        .qc-bg { background-color: #6c3483; color: white; }
         .shared-bg { background-color: #7f8c8d; color: white; }
-        
+
         .header-banner {
             background-color: #fff;
             border-bottom: 2px solid #e0e0e0;
@@ -36,6 +38,8 @@
     </style>
 </head>
 <body>
+
+{% include 'home/includes/portal_nav_bar.html' %}
 
 <div class="header-banner shadow-sm">
     <div class="container d-flex justify-content-between align-items-center">
@@ -52,7 +56,7 @@
 </div>
 
 <div class="container mb-5">
-    
+
     {% if not request.user.is_authenticated %}
         <div class="text-center mt-5">
             <h1 class="display-5 text-muted">Please log in to access your portal.</h1>
@@ -84,18 +88,26 @@
                         </div>
                     </a>
                 </div>
-            {% endif %}
 
+                <div class="col-md-4">
+                    <a href="{% url 'designer_dashboard' %}" class="text-decoration-none">
+                        <div class="card panel-card designer-bg shadow-sm">
+                            <div class="card-body text-center p-4">
+                                <h1 class="display-4 mb-3">📐</h1>
+                                <h4 class="card-title fw-bold">Designer workspace</h4>
+                                <p class="card-text small">Build manufacturing plans, quotes, and flow steps.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
 
-            {% if request.user.profile.role == 'manufacturer' or request.user.is_superuser %}
-                
                 <div class="col-md-4">
                     <a href="{% url 'manufacturer_dashboard' %}" class="text-decoration-none">
-                        <div class="card panel-card roles-bg shadow-sm">
+                        <div class="card panel-card mfg-bg shadow-sm">
                             <div class="card-body text-center p-4">
                                 <h1 class="display-4 mb-3">⚙️</h1>
-                                <h4 class="card-title fw-bold">Manufacturer Portal</h4>
-                                <p class="card-text small">Update flowchart stages and mark item steps as complete.</p>
+                                <h4 class="card-title fw-bold">Manufacturer workspace</h4>
+                                <p class="card-text small">Production queue and step execution.</p>
                             </div>
                         </div>
                     </a>
@@ -103,23 +115,11 @@
 
                 <div class="col-md-4">
                     <a href="{% url 'quality_control' %}" class="text-decoration-none">
-                        <div class="card panel-card roles-bg shadow-sm">
+                        <div class="card panel-card qc-bg shadow-sm">
                             <div class="card-body text-center p-4">
-                                <h1 class="display-4 mb-3">🔍</h1>
-                                <h4 class="card-title fw-bold">Quality Control Logs</h4>
-                                <p class="card-text small">Review ultrasonic tests and mill certificates.</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-
-                <div class="col-md-4">
-                    <a href=" {% url 'designer_dashboard' %} " class="text-decoration-none">
-                        <div class="card panel-card roles-bg shadow-sm">
-                            <div class="card-body text-center p-4">
-                                <h1 class="display-4 mb-3">🗂</h1>
-                                <h4 class="card-title fw-bold">Designer</h4>
-                                <p class="card-text small">-- tell what this does --</p>
+                                <h1 class="display-4 mb-3">✅</h1>
+                                <h4 class="card-title fw-bold">Quality control</h4>
+                                <p class="card-text small">Review orders pending QC sign-off.</p>
                             </div>
                         </div>
                     </a>
@@ -127,15 +127,54 @@
 
                 <div class="col-md-4">
                     <a href="{% url 'warehouse_dashboard' %}" class="text-decoration-none">
-                        <div class="card panel-card roles-bg shadow-sm">
+                        <div class="card panel-card warehouse-bg shadow-sm">
                             <div class="card-body text-center p-4">
-                                <h1 class="display-4 mb-3">🏗</h1>
+                                <h1 class="display-4 mb-3">📦</h1>
                                 <h4 class="card-title fw-bold">Warehouse</h4>
-                                <p class="card-text small">-- tell what this does --</p>
+                                <p class="card-text small">Store, pick, inventory, and reservations.</p>
                             </div>
                         </div>
                     </a>
                 </div>
+
+                <div class="col-md-4">
+                    <a href="{% url 'customer_request_quote' %}" class="text-decoration-none">
+                        <div class="card panel-card customer-bg shadow-sm">
+                            <div class="card-body text-center p-4">
+                                <h1 class="display-4 mb-3">📋</h1>
+                                <h4 class="card-title fw-bold">Customer quote portal</h4>
+                                <p class="card-text small">Submit or test the customer quote request flow.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="col-md-4">
+                    <a href="{% url 'customer_panel' %}" class="text-decoration-none">
+                        <div class="card panel-card customer-bg shadow-sm">
+                            <div class="card-body text-center p-4">
+                                <h1 class="display-4 mb-3">🔎</h1>
+                                <h4 class="card-title fw-bold">Customer order tracking</h4>
+                                <p class="card-text small">Open the public tracking portal (same as customers).</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+                {% if request.user.is_staff %}
+                <div class="col-md-4">
+                    <a href="{% url 'admin:index' %}" class="text-decoration-none">
+                        <div class="card panel-card admin-bg shadow-sm">
+                            <div class="card-body text-center p-4">
+                                <h1 class="display-4 mb-3">🛠</h1>
+                                <h4 class="card-title fw-bold">Django admin</h4>
+                                <p class="card-text small">Database and user administration.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endif %}
+
             {% endif %}
 
             <div class="col-md-4">
@@ -144,19 +183,7 @@
                         <div class="card-body text-center p-4">
                             <h1 class="display-4 mb-3">💬</h1>
                             <h4 class="card-title fw-bold">Support & Messages</h4>
-                            <p class="card-text small">Access your communication history and active support tickets.</p>
-                        </div>
-                    </div>
-                </a>
-            </div>
-
-            <div class="col-md-4">
-                <a href="/admin/" class="text-decoration-none">
-                    <div class="card panel-card othersIDK shadow-sm">
-                        <div class="card-body text-center p-4">
-                            <h1 class="display-4 mb-3">📟</h1>
-                            <h4 class="card-title fw-bold">Django Database</h4>
-                            <p class="card-text small">Access the actual database interface.</p>
+                            <p class="card-text small">Communication history and support threads.</p>
                         </div>
                     </div>
                 </a>

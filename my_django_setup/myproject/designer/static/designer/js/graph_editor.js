@@ -117,6 +117,41 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 setTimeout(fitGraphView, 0);
                 setTimeout(fitGraphView, 100);
+
+                // Used by automated UI tour: add same dependency edge as manual "Add dependency edge" drag.
+                window.__STREMET_DESIGNER_GRAPH = {
+                    connectStepsByLabel: function (prerequisiteSubstr, dependentSubstr) {
+                        function mfgStepId(substr) {
+                            var found = null;
+                            nodesDataset.forEach(function (n) {
+                                if (found != null) return;
+                                if (!n.label || n.label.indexOf('Pick materials') >= 0) return;
+                                if (n.label.indexOf(substr) >= 0) found = n.id;
+                            });
+                            return found;
+                        }
+                        var fromId = mfgStepId(prerequisiteSubstr);
+                        var toId = mfgStepId(dependentSubstr);
+                        if (fromId == null || toId == null) {
+                            return 'missing';
+                        }
+                        if (fromId === toId) return 'same';
+                        var existing = edgesDataset.get({
+                            filter: function (e) {
+                                return e.from === fromId && e.to === toId;
+                            },
+                        });
+                        if (existing.length > 0) return 'exists';
+                        edgesDataset.add({
+                            id: 'stremet_tour_' + fromId + '_' + toId,
+                            from: fromId,
+                            to: toId,
+                            arrows: { to: { enabled: true } },
+                        });
+                        if (network) network.disableEditMode();
+                        return 'ok';
+                    },
+                };
             })
             .catch(function () {
                 showToast('Could not load graph data.', 'danger');

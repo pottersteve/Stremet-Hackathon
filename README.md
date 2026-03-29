@@ -116,6 +116,70 @@ cd my_django_setup/myproject && python manage.py check
 pytest -q   # from repository root
 ```
 
+## Automated UI tour (Playwright)
+
+The script [`scripts/stremet_ui_tour.py`](scripts/stremet_ui_tour.py) opens a **visible** Chromium window and drives the same flows people use in production: quote request, portal tracking and chat, support with **Suggest AI Reply** (local GPT4All), designer plan and BOM, warehouse pickup, manufacturer step completion, then checking status again as the customer.
+
+By default, automated clicks and field fills wait **250 ms** after each action (`--action-delay-ms 250`). Playwright `slow_mo` defaults to **0** for normal speed. Between workflow phases the script waits for **Enter** so you can stop and look; use `--no-pause` to run straight through with only that 250 ms pacing between beats.
+
+### Prerequisites
+
+- **Virtual environment** — Same venv for Django, `gpt4all`, and Playwright.
+
+  ```bash
+  python -m venv .venv
+  # Windows
+  .venv\Scripts\activate
+  # macOS / Linux
+  source .venv/bin/activate
+  ```
+
+- **Packages**
+
+  ```bash
+  pip install -r requirements.txt -r requirements-dev.txt
+  python -m playwright install chromium
+  ```
+
+- **GPT4All** — Django preloads the model when each `manage.py` process runs (`migrate`, `seed_stremet_demo`, `runserver`), which can take several minutes on a cold machine. The script waits up to **900 s** for HTTP after `runserver` starts unless you set `--server-ready-timeout` higher.
+
+### Run (repository root, venv active)
+
+```bash
+python scripts/stremet_ui_tour.py
+```
+
+This runs `migrate`, `seed_stremet_demo`, starts `runserver` on `127.0.0.1:8000`, waits for `/`, then runs the walkthrough.
+
+### Accounts and passwords
+
+Sample users and wipe rules: [`STREMET_DEMO_DATA.md`](STREMET_DEMO_DATA.md). Default password is `StremetTrain2026!` unless **`STREMET_SEED_PASSWORD`** is set when you run the script (and when seeding).
+
+```bash
+python scripts/stremet_ui_tour.py --password "YourSeedPassword"
+```
+
+### Useful options
+
+| Flag | Purpose |
+|------|---------|
+| `--no-pause` | No Enter between phases; only `--action-delay-ms` between beats. |
+| `--no-server` | Do not start `runserver`; use a running instance (`--base-url` if needed). |
+| `--skip-migrate` / `--skip-seed` | Skip database steps (debugging). |
+| `--order-id SO-2026-10001` | Fixed order id (default `SO-2026-<unix_ts>`). |
+| `--server-ready-timeout 1200` | Seconds to wait for HTTP after `runserver` (GPT4All startup). |
+| `--ai-timeout-sec 180` | Max wait for streamed AI text in support reply box. |
+| `--action-delay-ms 250` | Pause after each automated UI action (default **250** ms). |
+| `--slow-mo` | Extra Playwright delay per action (default **0**). |
+
+`python scripts/stremet_ui_tour.py --help` lists everything.
+
+### Troubleshooting
+
+- **`seed_stremet_demo` + protected foreign key** — Often a previous incomplete run left BOM rows pointing at catalog lines the seed command tries to delete. Restore from backup or reset `db.sqlite3`, then `migrate` and `seed_stremet_demo` again. See `STREMET_DEMO_DATA.md`.
+- **AI reply stays empty** — Ensure `gpt4all` works in this venv and the model has finished loading. The script uses a short fallback message if the stream does not finish within `--ai-timeout-sec`.
+- **Chromium missing** — Run `python -m playwright install chromium` in the same venv as the script.
+
 ## Configuration
 
 By default, `DJANGO_SETTINGS_MODULE` is `myproject.settings`, which loads **local** development settings unless you opt into production.

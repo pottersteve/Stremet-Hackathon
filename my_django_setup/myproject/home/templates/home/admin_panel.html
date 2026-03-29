@@ -11,15 +11,12 @@
         .section-card { margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
     </style>
 </head>
-{% if user.is_authenticated %}
-{% include 'home/includes/portal_nav_bar.html' %}
-{% endif %}
 <body>
-    
+{% include 'home/includes/portal_nav_bar.html' %}
 <div class="admin-header mb-4">
-    <div class="container d-flex justify-content-between align-items-center">
+    <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
         <h2 class="mb-0">Administrator Portal - New Order Entry</h2>
-        <a href="{% url 'staff_dashboard' %}" class="btn btn-outline-light">Back to Dashboard</a>
+        <a href="{% url portal_home_url_name %}" class="btn btn-outline-light">Home</a>
     </div>
 </div>
 
@@ -33,7 +30,6 @@
         {% endfor %}
     {% endif %}
 
-    <form action="{% url 'admin_panel' %}" method="POST" enctype="multipart/form-data">
     <form action="{% url 'admin_panel' %}" method="POST" enctype="multipart/form-data">
         {% csrf_token %}
         

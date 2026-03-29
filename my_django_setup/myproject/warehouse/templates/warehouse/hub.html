@@ -15,15 +15,15 @@
 <nav class="navbar navbar-dark wh-header">
     <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span class="navbar-brand mb-0 h4">Stremet — Warehouse</span>
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-            <a href="{% url 'warehouse_inventory' %}" class="btn btn-sm btn-outline-light">Inventory</a>
-            <span class="text-light me-2">{{ request.user.username }}</span>
+        <div>
+            <span class="text-light me-3">{{ request.user.username }}</span>
             <a href="{% url 'logout' %}" class="btn btn-outline-light btn-sm">Logout</a>
         </div>
     </div>
 </nav>
 
-<div class="container mt-5" style="max-width:720px;">
+<div class="container mt-4">
+
     {% if messages %}
         {% for message in messages %}
             <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
@@ -33,10 +33,15 @@
         {% endfor %}
     {% endif %}
 
-    <p class="text-muted mb-4">Choose what you are doing right now. Storing and picking use separate screens.</p>
+    <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+        <div>
+            <h3 class="mb-0">Warehouse home</h3>
+            <small class="text-muted">Store stock, run pickups, check inventory, or create reservations.</small>
+        </div>
+    </div>
 
     <div class="row g-4">
-        <div class="col-md-6">
+        <div class="col-md-6 col-xl-4">
             <a href="{% url 'warehouse_store' %}" class="text-decoration-none text-dark">
                 <div class="card shadow-sm border-0 wh-card h-100 p-4 text-center">
                     <h4 class="mb-2">Store items</h4>
@@ -44,11 +49,27 @@
                 </div>
             </a>
         </div>
-        <div class="col-md-6">
+        <div class="col-md-6 col-xl-4">
             <a href="{% url 'warehouse_pickup_queue' %}" class="text-decoration-none text-dark">
                 <div class="card shadow-sm border-0 wh-card h-100 p-4 text-center">
                     <h4 class="mb-2">Pickup queue</h4>
                     <p class="text-muted small mb-0">Open manufacturing pickups and confirm when stock is issued.</p>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-6 col-xl-4">
+            <a href="{% url 'warehouse_inventory' %}" class="text-decoration-none text-dark">
+                <div class="card shadow-sm border-0 wh-card h-100 p-4 text-center">
+                    <h4 class="mb-2">Inventory</h4>
+                    <p class="text-muted small mb-0">Browse stock levels and locations.</p>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-6 col-xl-4">
+            <a href="{% url 'warehouse_reservation_create' %}" class="text-decoration-none text-dark">
+                <div class="card shadow-sm border-0 wh-card h-100 p-4 text-center">
+                    <h4 class="mb-2">New reservation</h4>
+                    <p class="text-muted small mb-0">Hold material for a manufacturing step.</p>
                 </div>
             </a>
         </div>

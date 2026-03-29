@@ -22,16 +22,6 @@
 </head>
 <body>
 
-{% if user.is_authenticated %}
-{% include 'home/includes/portal_nav_bar.html' %}
-<div class="container mt-3 mb-2">
-    <div class="d-flex justify-content-end align-items-center gap-2 flex-wrap">
-        <span class="text-muted small">Signed in as <strong>{{ user.username }}</strong></span>
-        <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-secondary">Log out</a>
-    </div>
-</div>
-{% endif %}
-
 <div class="container mt-5">
     <div class="text-center mb-5">
         <h1 class="display-4 fw-bold">Stremet Management System</h1>

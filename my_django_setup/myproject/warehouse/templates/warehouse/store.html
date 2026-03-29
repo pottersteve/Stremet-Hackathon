@@ -12,12 +12,9 @@
 
 {% include 'home/includes/portal_nav_bar.html' %}
 
-<nav class="navbar navbar-dark wh-header">
-    {% include 'warehouse/includes/subnav.html' with wh_nav_active='store' %}
-</nav>
+{% include 'warehouse/includes/page_header.html' with wh_headline='Store items' %}
 
-<div class="container mt-4" style="max-width:640px;">
-
+<div class="container mt-4">
     {% if messages %}
         {% for message in messages %}
             <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
@@ -27,28 +24,30 @@
         {% endfor %}
     {% endif %}
 
-    <p class="mb-3"><a href="{% url 'warehouse_dashboard' %}" class="text-muted small">&larr; Warehouse home</a></p>
-
-    <div class="card shadow-sm border-0 wh-card">
-        <div class="card-header bg-white"><h5 class="mb-0">Store item</h5></div>
-        <div class="card-body">
-            {% if suggested_slot %}
-            <p class="text-muted small mb-2">Suggested slot: <strong>Slot {{ suggested_slot.slot_number }}</strong> (next free).</p>
-            {% else %}
-            <p class="text-danger small mb-2">No free slots.</p>
-            {% endif %}
-            <form method="post" action="{% url 'warehouse_receive' %}">
-                {% csrf_token %}
-                <div class="mb-2">
-                    <label class="form-label">{{ receive_form.item_reservation.label }}</label>
-                    {{ receive_form.item_reservation }}
+    <div class="row justify-content-center">
+        <div class="col-lg-7 col-xl-6">
+            <div class="card shadow-sm border-0 wh-card">
+                <div class="card-header bg-white"><h5 class="mb-0">Store item</h5></div>
+                <div class="card-body">
+                    {% if suggested_slot %}
+                    <p class="text-muted small mb-2">Suggested slot: <strong>Slot {{ suggested_slot.slot_number }}</strong> (next free).</p>
+                    {% else %}
+                    <p class="text-danger small mb-2">No free slots.</p>
+                    {% endif %}
+                    <form method="post" action="{% url 'warehouse_receive' %}">
+                        {% csrf_token %}
+                        <div class="mb-2">
+                            <label class="form-label">{{ receive_form.item_reservation.label }}</label>
+                            {{ receive_form.item_reservation }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">{{ receive_form.label.label }}</label>
+                            {{ receive_form.label }}
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100" {% if not suggested_slot %}disabled{% endif %}>Store in suggested slot</button>
+                    </form>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">{{ receive_form.label.label }}</label>
-                    {{ receive_form.label }}
-                </div>
-                <button type="submit" class="btn btn-primary w-100" {% if not suggested_slot %}disabled{% endif %}>Store in suggested slot</button>
-            </form>
+            </div>
         </div>
     </div>
 </div>

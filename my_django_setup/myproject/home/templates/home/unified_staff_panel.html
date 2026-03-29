@@ -72,44 +72,12 @@
             </div>
 
             {% if order %}
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h4 class="mb-0">Items for Order: {{ order.order_id }}</h4>
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <h4 class="mb-0">Order: {{ order.order_id }}</h4>
                     <span class="badge bg-success fs-6 px-3 py-2">{{ order.get_status_display }}</span>
                 </div>
-
-                {% for item in order.items.all %}
-                    <div class="item-card text-dark">
-                        <h5 class="mb-4 text-center">Item #{{ forloop.counter }}: {{ item.item_name }} (Qty: {{ item.quantity }})</h5>
-                        
-                        <div class="flowchart-container">
-                            <div class="process-step">
-                                <div class="process-box {% if item.step_1_programming %}done{% endif %}">
-                                    <div class="step-label {% if item.step_1_programming %}text-white{% endif %}">Programming /<br>Designing</div>
-                                </div>
-                                <button class="btn btn-mfg done-btn {% if item.step_1_programming %}btn-done-active{% else %}btn-done-inactive{% endif %}" 
-                                        data-item-id="{{ item.id }}" data-step="1">Done</button>
-                            </div>
-
-                            <div class="process-step">
-                                <div class="process-box {% if item.step_2_cutting %}done{% endif %}">
-                                    <div class="step-label {% if item.step_2_cutting %}text-white{% endif %}">Cutting<br>(2D)</div>
-                                </div>
-                                <button class="btn btn-mfg done-btn {% if item.step_2_cutting %}btn-done-active{% else %}btn-done-inactive{% endif %}" 
-                                        data-item-id="{{ item.id }}" data-step="2">Done</button>
-                            </div>
-                            
-                            <div class="process-step">
-                                <div class="process-box {% if item.step_5_delivery %}done{% endif %}">
-                                    <div class="step-label {% if item.step_5_delivery %}text-white{% endif %}">Delivery /<br>3rd Party</div>
-                                </div>
-                                <button class="btn btn-mfg done-btn {% if item.step_5_delivery %}btn-done-active{% else %}btn-done-inactive{% endif %}" 
-                                        data-item-id="{{ item.id }}" data-step="5">Done</button>
-                            </div>
-                        </div>
-                    </div>
-                {% empty %}
-                    <div class="alert alert-warning text-dark">No items logged for this order. (Add items via the Django Admin Panel).</div>
-                {% endfor %}
+                <p class="text-dark mb-3">Production progress and step completion are managed in the manufacturing workspace (same plan the designer builds).</p>
+                <a href="{% url 'manufacturer_order_execution' order.pk %}" class="btn btn-dark btn-lg">Open production for this order</a>
             {% endif %}
             
         </div>

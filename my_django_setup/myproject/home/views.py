@@ -17,7 +17,7 @@ from django.http import (
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .auth_utils import ensure_user_profile, get_profile_role
-from .models import ChatMessage, Order
+from .models import ChatMessage, Client, Order, OrderImage
 from .services import (
     apply_flowchart_step_update,
     create_chat_message_from_request,
@@ -372,6 +372,87 @@ def generate_ai_suggestion(request):
     return response
 
 
+def client_directory(request):
+    """Custom interface for Admins to view all clients and their associated orders."""
+
+    is_admin = request.user.is_superuser or (
+        hasattr(request.user, "profile") and request.user.profile.role == "admin"
+    )
+    if not is_admin:
+        messages.error(
+            request, "Access Denied. You do not have administrator privileges."
+        )
+        return redirect("home_dashboard")
+
+    clients = Client.objects.prefetch_related("orders").all().order_by("company_name")
+
+    return render(request, "home/client_directory.html", {"clients": clients})
+
+
+def admin_panel(request):
+    """View for the Administrator Portal to create new manufacturing orders."""
+
+    is_admin = request.user.is_superuser or (
+        hasattr(request.user, "profile") and request.user.profile.role == "admin"
+    )
+    if not is_admin:
+        messages.error(
+            request, "Access Denied. You do not have administrator privileges."
+        )
+        return redirect("home_dashboard")
+
+    if request.method == "POST":
+        try:
+            company_name = request.POST.get("company_name")
+            client_email = request.POST.get("client_email")
+
+            client, _ = Client.objects.get_or_create(
+                email=client_email,
+                defaults={"company_name": company_name},
+            )
+
+            thickness = request.POST.get("dim_thickness") or "0"
+            width = request.POST.get("dim_width") or "0"
+            length = request.POST.get("dim_length") or "0"
+            dimensions_str = f"{thickness}mm x {width}mm x {length}mm"
+
+            quantity_tons = request.POST.get("quantity_tons")
+            if not quantity_tons:
+                quantity_tons = 0
+
+            new_order = Order.objects.create(
+                order_id=request.POST.get("order_id"),
+                client=client,
+                target_delivery=request.POST.get("target_delivery"),
+                steel_grade=request.POST.get("steel_grade"),
+                product_form=request.POST.get("product_form"),
+                dimensions=dimensions_str,
+                quantity_tons=quantity_tons,
+                surface_finish=request.POST.get("surface_finish"),
+                heat_treatment=(request.POST.get("heat_treatment") == "yes"),
+                ultrasonic_test=(request.POST.get("ultrasonic_test") == "yes"),
+                mill_certificate=(request.POST.get("mill_certificate") == "yes"),
+                blueprint_file=request.FILES.get("blueprint_file"),
+                admin_notes=request.POST.get("admin_notes"),
+            )
+
+            images = request.FILES.getlist("reference_images")
+            for img in images:
+                OrderImage.objects.create(order=new_order, image=img)
+
+            messages.success(
+                request,
+                f"Manufacturing Order {new_order.order_id} successfully created!",
+            )
+            return redirect("admin_panel")
+
+        except Exception as e:
+            messages.error(request, f"Error saving order: {e}")
+            return redirect("admin_panel")
+
+    return render(request, "home/admin_panel.html")
+
+
 def _get_role_redirect(user):
     """Return the URL name to redirect to based on user role."""
     ensure_user_profile(user)
@@ -380,6 +461,8 @@ def _get_role_redirect(user):
         return "designer_dashboard"
     if role == "manufacturer":
         return "manufacturer_dashboard"
+    if role == "warehouse":
+        return "warehouse_dashboard"
     if role == "customer":
         return "customer_request_quote"
     return "staff_dashboard"
@@ -450,6 +533,8 @@ def customer_request_quote(request):
         role = get_profile_role(request.user)
         if role == "manufacturer":
             return redirect("manufacturer_dashboard")
+        if role == "warehouse":
+            return redirect("warehouse_dashboard")
         if role == "designer":
             return redirect("designer_dashboard")
         messages.error(request, "You do not have access to this page.")
@@ -489,6 +574,9 @@ def staff_dashboard(request):
 
     if role == "manufacturer" and not request.user.is_superuser:
         return redirect("manufacturer_dashboard")
+
+    if role == "warehouse" and not request.user.is_superuser:
+        return redirect("warehouse_dashboard")
 
     is_admin = False
     is_mfg = False

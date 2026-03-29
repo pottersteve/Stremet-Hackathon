@@ -8,6 +8,7 @@ class UserProfile(models.Model):
         ("customer", "Customer"),
         ("manufacturer", "Manufacturer"),
         ("designer", "Designer"),
+        ("warehouse", "Warehouse"),
     )
     # Links this profile to the built-in Django User (which handles name, email, password)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")

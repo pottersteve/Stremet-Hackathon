@@ -15,8 +15,9 @@
 <nav class="navbar navbar-dark designer-header">
     <div class="container d-flex justify-content-between align-items-center">
         <span class="navbar-brand mb-0 h4">Stremet — Designer Dashboard</span>
-        <div>
-            <span class="text-light me-3">{{ request.user.username }}</span>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'designer_item_reservation_list' %}" class="btn btn-sm btn-outline-light">Item reservations</a>
+            <span class="text-light me-2">{{ request.user.username }}</span>
             <a href="{% url 'logout' %}" class="btn btn-outline-light btn-sm">Logout</a>
         </div>
     </div>

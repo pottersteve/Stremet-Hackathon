@@ -130,9 +130,12 @@
 
         <!-- Materials -->
         <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Required Materials</h5>
-                <button type="button" class="btn btn-success btn-sm" id="add-material-row">+ Add Material</button>
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h5 class="mb-0">Required Materials (item reservations)</h5>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'designer_item_reservation_list' %}" class="btn btn-outline-secondary btn-sm">Manage reservations</a>
+                    <button type="button" class="btn btn-success btn-sm" id="add-material-row">+ Add line</button>
+                </div>
             </div>
             <div class="card-body">
                 {{ material_formset.management_form }}
@@ -140,12 +143,11 @@
                     <table class="table table-sm align-middle" id="material-table">
                         <thead>
                             <tr>
-                                <th>Material Name</th>
+                                <th>Item reservation</th>
                                 <th>Specification</th>
                                 <th style="width:80px">Qty</th>
                                 <th style="width:70px">Unit</th>
-                                <th>Storage Location</th>
-                                <th>Storage Conditions</th>
+                                <th>Storage conditions</th>
                                 <th style="width:60px">Delete</th>
                             </tr>
                         </thead>
@@ -154,13 +156,12 @@
                             <tr class="material-row {% if mform.instance.pk %}{% else %}empty-form{% endif %}">
                                 <td>
                                     {{ mform.id }}
-                                    {{ mform.material_name }}
-                                    {% for error in mform.material_name.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                                    {{ mform.item_reservation }}
+                                    {% for error in mform.item_reservation.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
                                 </td>
                                 <td>{{ mform.specification }}</td>
                                 <td>{{ mform.quantity }}</td>
                                 <td>{{ mform.unit }}</td>
-                                <td>{{ mform.storage_location }}</td>
                                 <td>{{ mform.storage_conditions }}</td>
                                 <td class="text-center">
                                     {% if mform.instance.pk %}

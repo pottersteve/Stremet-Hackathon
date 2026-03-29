@@ -1,0 +1,12 @@
+body {
+    background-color: #f4f6f9;
+}
+
+.wh-header {
+    background-color: #5c4d7d;
+    padding: 12px 0;
+}
+
+.wh-card {
+    border-left: 4px solid #5c4d7d;
+}

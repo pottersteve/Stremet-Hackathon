@@ -1,0 +1,34 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Warehouse inventory</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'warehouse/css/wh.css' %}">
+</head>
+<body>
+{% include 'home/includes/portal_nav_bar.html' %}
+<nav class="navbar navbar-dark wh-header mb-4">
+    {% include 'warehouse/includes/subnav.html' with wh_nav_active='inventory' %}
+</nav>
+<div class="container">
+    <h4 class="mb-3">Stored items</h4>
+    <table class="table table-sm">
+        <thead><tr><th>Slot</th><th>Reservation</th><th>Label</th><th>Stored</th></tr></thead>
+        <tbody>
+            {% for it in items %}
+            <tr>
+                <td>{{ it.storage_space.slot_number }}</td>
+                <td>{{ it.item_reservation.name }}</td>
+                <td>{{ it.label|default:"—" }}</td>
+                <td>{{ it.stored_at }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-muted">No items in storage.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

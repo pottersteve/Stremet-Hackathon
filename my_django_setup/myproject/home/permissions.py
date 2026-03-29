@@ -39,3 +39,4 @@ def role_required(
 
 designer_required = role_required("designer", "admin")
 manufacturer_required = role_required("manufacturer", "admin")
+warehouse_required = role_required("warehouse", "admin")

@@ -1,6 +1,8 @@
 from django import forms
 from django.forms import inlineformset_factory
 
+from warehouse.models import ItemReservation
+
 from .models import (
     ManufacturingPlan,
     ManufacturingStep,
@@ -110,18 +112,15 @@ class StepMaterialForm(forms.ModelForm):
     class Meta:
         model = StepMaterial
         fields = [
-            "material_name",
+            "item_reservation",
             "specification",
             "quantity",
             "unit",
             "supplier_notes",
-            "storage_location",
             "storage_conditions",
         ]
         widgets = {
-            "material_name": forms.TextInput(
-                attrs={"class": "form-control", "placeholder": "e.g. S355 Steel Sheet"}
-            ),
+            "item_reservation": forms.Select(attrs={"class": "form-select"}),
             "specification": forms.TextInput(
                 attrs={"class": "form-control", "placeholder": "Grade, coating, etc."}
             ),
@@ -132,12 +131,27 @@ class StepMaterialForm(forms.ModelForm):
                 attrs={"class": "form-control", "placeholder": "kg, sheets, m"}
             ),
             "supplier_notes": forms.TextInput(attrs={"class": "form-control"}),
-            "storage_location": forms.TextInput(
-                attrs={"class": "form-control", "placeholder": "Warehouse A, Shelf B3"}
-            ),
             "storage_conditions": forms.TextInput(
                 attrs={"class": "form-control", "placeholder": "Keep dry, max 25C"}
             ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["item_reservation"].queryset = ItemReservation.objects.order_by(
+            "name", "sku"
+        )
+        self.fields["item_reservation"].label = "Item reservation (warehouse type)"
+
+
+class ItemReservationForm(forms.ModelForm):
+    class Meta:
+        model = ItemReservation
+        fields = ["name", "sku", "description"]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control"}),
+            "sku": forms.TextInput(attrs={"class": "form-control"}),
+            "description": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
         }
 
 

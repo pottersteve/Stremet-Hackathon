@@ -19,6 +19,7 @@ def portal_navigation(request):
             {"label": "Staff", "url": reverse("staff_dashboard")},
             {"label": "Designer", "url": reverse("designer_dashboard")},
             {"label": "Manufacturer", "url": reverse("manufacturer_dashboard")},
+            {"label": "Warehouse", "url": reverse("warehouse_dashboard")},
             {"label": "Customer quote", "url": reverse("customer_request_quote")},
         ]
     return data

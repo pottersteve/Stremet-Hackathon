@@ -6,8 +6,9 @@ from typing import TYPE_CHECKING, TypedDict
 
 from django.db.models import QuerySet
 
+from designer.models import ManufacturingPlan, ManufacturingStep
+
 if TYPE_CHECKING:
-    from designer.models import ManufacturingPlan, ManufacturingStep
     from home.models import Order
 
 MANUFACTURER_PLAN_STATUSES = ("ready", "approved")
@@ -42,6 +43,28 @@ def ready_steps_for_plan(plan: ManufacturingPlan) -> list[ManufacturingStep]:
     return [s for s in steps if step_is_actionable(s)]
 
 
+def ready_manufacturing_steps_for_plan(
+    plan: ManufacturingPlan,
+) -> list[ManufacturingStep]:
+    steps = list(plan.steps.prefetch_related("incoming_dependencies__from_step").all())
+    return [
+        s
+        for s in steps
+        if s.step_kind == ManufacturingStep.STEP_KIND_MANUFACTURING
+        and step_is_actionable(s)
+    ]
+
+
+def ready_pickup_steps_for_plan(plan: ManufacturingPlan) -> list[ManufacturingStep]:
+    steps = list(plan.steps.prefetch_related("incoming_dependencies__from_step").all())
+    return [
+        s
+        for s in steps
+        if s.step_kind == ManufacturingStep.STEP_KIND_WAREHOUSE_PICKUP
+        and step_is_actionable(s)
+    ]
+
+
 def primary_ready_step(
     ready_steps: list[ManufacturingStep],
 ) -> ManufacturingStep | None:
@@ -64,7 +87,7 @@ class PlanWorkSummary(TypedDict):
 
 
 def plan_work_summary(plan: ManufacturingPlan) -> PlanWorkSummary:
-    ready = ready_steps_for_plan(plan)
+    ready = ready_manufacturing_steps_for_plan(plan)
     primary = primary_ready_step(ready)
     primary_id = primary.pk if primary else None
     other_ready = [s for s in ready if s.pk != primary_id]

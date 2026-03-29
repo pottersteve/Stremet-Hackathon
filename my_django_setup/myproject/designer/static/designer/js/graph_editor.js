@@ -87,12 +87,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 edgesDataset.clear();
 
                 (data.nodes || []).forEach(function (n) {
+                    var bg = n.step_kind === 'warehouse_pickup' ? '#6f42c1' : n.color;
                     nodesDataset.add({
                         id: n.id,
                         label: n.label,
                         x: n.x,
                         y: n.y,
-                        color: { background: n.color, border: n.color },
+                        color: { background: bg, border: bg },
                     });
                 });
 

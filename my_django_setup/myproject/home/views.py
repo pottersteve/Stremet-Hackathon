@@ -199,10 +199,7 @@ def generate_ai_suggestion(request):
         )
 
     order = (
-        Order.objects.filter(order_id=order_id)
-        .select_related("client")
-        .prefetch_related("items")
-        .first()
+        Order.objects.filter(order_id=order_id).select_related("client").first()
     )
     if order is None:
         return HttpResponse(

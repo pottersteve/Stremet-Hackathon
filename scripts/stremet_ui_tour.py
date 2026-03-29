@@ -190,7 +190,6 @@ def run_tour(args: argparse.Namespace) -> None:
             page.locator('button[name="create_customer_order"]').click()
             page.wait_for_load_state("networkidle")
             after_action(page, delay_ms)
-            beat_pause("Quote confirmation", args)
 
             # Customer portal: track order and chat
             page.goto(f"{base}/customer/", wait_until="domcontentloaded")

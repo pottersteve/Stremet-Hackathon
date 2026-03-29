@@ -463,6 +463,9 @@ def staff_dashboard(request):
     if role == "warehouse" and not request.user.is_superuser:
         return redirect("warehouse_dashboard")
 
+    if role == "designer" and not request.user.is_superuser:
+        return redirect("designer_dashboard")
+
     is_admin = False
     is_mfg = False
 
